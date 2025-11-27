@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#C6A667">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Admin Panel - Menu Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/admin.css">
+    <script>
+        // Redirect kagzso paths to hash-based routing for static hosting
+        // Only redirect if we're not already on the correct page
+        (function() {
+            const pathname = window.location.pathname;
+            const hash = window.location.hash;
+            
+            // If we're already on admin.html with the correct hash, don't redirect
+            if (pathname === '/admin.html' && hash.startsWith('#/kagzso/admin/')) {
+                return; // Already on correct page
+            }
+            
+            // If we're on a kagzso admin path served by the server, don't redirect
+            // The server serves admin.html for /kagzso/admin/ paths
+            if (pathname.startsWith('/kagzso/admin/')) {
+                return; // Server is already serving admin.html, no redirect needed
+            }
+            
+            // Only redirect if we're on a different path
+            if (pathname.includes('/kagzso/user/')) {
+                // Redirect to index.html with hash
+                window.location.replace('/index.html#' + pathname);
+            } else if (pathname.includes('/kagzso/admin/')) {
+                // This shouldn't happen if server is working, but handle it anyway
+                window.location.replace('/admin.html#' + pathname);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <!-- Password Protection Modal -->
+    <!-- Modal is visible by default - JavaScript will hide it if authenticated -->
+    <div id="password-modal" class="modal" style="display: flex;">
+        <div class="modal-content">
+            <h2>Admin Login</h2>
+            <div class="password-input-wrapper">
+                <input type="password" id="password-input" placeholder="Enter password" autofocus>
+                <button type="button" id="toggle-password" class="toggle-password-btn" aria-label="Show password">
+                    <span class="eye-icon">👁</span>
+                </button>
+            </div>
+            <button id="login-btn" class="btn btn-primary">Login</button>
+            <p id="error-message" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- Admin Panel (Hidden until authenticated) -->
+    <div id="admin-panel" class="admin-panel hidden">
+        <header>
+            <div class="admin-header-banner-container">
+                <!-- BANNER BLOCK -->
+                <div id="admin-banner-block" class="admin-banner-block-new rounded-xl shadow-sm p-6 mb-4 text-center">
+                    <h1 id="restaurant-title-admin-header" class="text-2xl font-bold tracking-wide mb-1">Restaurant Menu</h1>
+                    <p class="text-sm opacity-80 -mt-1">Admin Panel</p>
+                    <h2 class="text-lg font-semibold tracking-tight mt-1">Menu Management</h2>
+                </div>
+                <!-- UNDER-BANNER CONTENT -->
+                <div class="admin-under-banner-content">
+                    <div class="admin-branch-buttons-wrapper">
+                        <div id="admin-branch-tiles" class="branch-tiles">
+                            <button class="branch-tile active" data-branch-id="">All Branches</button>
+                        </div>
+                    </div>
+                    <div class="admin-navigation-buttons">
+                        <button id="back-to-admin-panel-btn" class="admin-back-button-banner">Back to Admin Panel</button>
+                        <button id="back-to-restaurant-btn" class="admin-back-button-banner">Back to Restaurant</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Collapsible Sections Card -->
+            <section class="admin-section">
+                <div class="admin-collapsible-sections-card">
+                    <!-- Admin GST Settings -->
+                    <div class="admin-collapsible-section-item">
+                        <div class="admin-collapsible-section-header" onclick="toggleGSTSection()">
+                            <span class="admin-collapsible-section-title">Admin GST Settings</span>
+                            <span class="admin-collapsible-section-icon" id="gst-icon">›</span>
+                        </div>
+                        <div class="admin-collapsible-section-content" id="gst-content" style="display: none;">
+                            <form id="gst-settings-form" class="gst-settings-form">
+                    <div class="gst-grid">
+                        <div class="gst-card">
+                            <h3>Dining</h3>
+                            <div class="flex flex-row gap-4 w-full mt-2">
+                                <div class="flex flex-col w-1/2 space-y-1">
+                                    <label for="gst-dining-cgst" class="text-sm font-medium text-gray-700">Dining CGST %</label>
+                                    <input type="number" id="gst-dining-cgst" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm outline-none focus:border-[#C8A766] focus:shadow-md" min="0" step="0.01" required>
+                                </div>
+                                <div class="flex flex-col w-1/2 space-y-1">
+                                    <label for="gst-dining-sgst" class="text-sm font-medium text-gray-700">Dining SGST %</label>
+                                    <input type="number" id="gst-dining-sgst" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm outline-none focus:border-[#C8A766] focus:shadow-md" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gst-card">
+                            <h3>Takeaway</h3>
+                            <div class="flex flex-row gap-4 w-full mt-2">
+                                <div class="flex flex-col w-1/2 space-y-1">
+                                    <label for="gst-takeaway-cgst" class="text-sm font-medium text-gray-700">Takeaway CGST %</label>
+                                    <input type="number" id="gst-takeaway-cgst" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm outline-none focus:border-[#C8A766] focus:shadow-md" min="0" step="0.01" required>
+                                </div>
+                                <div class="flex flex-col w-1/2 space-y-1">
+                                    <label for="gst-takeaway-sgst" class="text-sm font-medium text-gray-700">Takeaway SGST %</label>
+                                    <input type="number" id="gst-takeaway-sgst" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm outline-none focus:border-[#C8A766] focus:shadow-md" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gst-card">
+                            <h3>Online Order</h3>
+                            <div class="flex flex-row gap-4 w-full mt-2">
+                                <div class="flex flex-col w-1/2 space-y-1">
+                                    <label for="gst-online-cgst" class="text-sm font-medium text-gray-700">Online Order CGST %</label>
+                                    <input type="number" id="gst-online-cgst" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm outline-none focus:border-[#C8A766] focus:shadow-md" min="0" step="0.01" required>
+                                </div>
+                                <div class="flex flex-col w-1/2 space-y-1">
+                                    <label for="gst-online-sgst" class="text-sm font-medium text-gray-700">Online Order SGST %</label>
+                                    <input type="number" id="gst-online-sgst" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm outline-none focus:border-[#C8A766] focus:shadow-md" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="gst-toggle">
+                        <label for="gst-enabled" class="toggle-label">
+                            <input type="checkbox" id="gst-enabled" checked>
+                            <span>With Tax (Enable GST calculation)</span>
+                        </label>
+                        <small>If unchecked, no tax will be calculated or shown anywhere in the application.</small>
+                    </div>
+                    <div class="gst-toggle">
+                        <label for="gst-show-tax" class="toggle-label">
+                            <input type="checkbox" id="gst-show-tax">
+                            <span>Show TAX breakdown on printed bill?</span>
+                        </label>
+                        <small>Only applies when "With Tax" is enabled. Controls whether to display tax details on bills.</small>
+                    </div>
+                    <div class="gst-actions">
+                        <button type="button" id="reset-gst-settings" class="gst-btn-reset">Reset to defaults</button>
+                        <button type="submit" class="gst-btn-save">Save GST Settings</button>
+                    </div>
+                    <div id="gst-settings-status" class="gst-settings-status" role="status" aria-live="polite"></div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Menu Items -->
+                    <div class="admin-collapsible-section-item">
+                        <div class="admin-collapsible-section-header" onclick="toggleExportSection('menu')">
+                            <span class="admin-collapsible-section-title">Menu Items</span>
+                            <span class="admin-collapsible-section-icon" id="menu-icon">›</span>
+                        </div>
+                        <div class="admin-collapsible-section-content w-full box-border" id="menu-content" style="display: none;">
+                            <div class="export-buttons-grid ml-[-4px]">
+                                <button type="button" id="export-menu-excel" class="export-btn-collapsible">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-excel" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Export Excel
+                                </button>
+                                <button type="button" id="export-menu-pdf" class="export-btn-collapsible">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-pdf" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    Export PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Billing / Sales -->
+                    <div class="admin-collapsible-section-item">
+                        <div class="admin-collapsible-section-header" onclick="toggleExportSection('sales')">
+                            <span class="admin-collapsible-section-title">Billing / Sales</span>
+                            <span class="admin-collapsible-section-icon" id="sales-icon">›</span>
+                        </div>
+                        <div class="admin-collapsible-section-content w-full box-border" id="sales-content" style="display: none;">
+                            <div class="export-buttons-grid ml-[-4px]">
+                                <button type="button" id="export-sales-excel" class="export-btn-collapsible">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-excel" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Export Excel
+                                </button>
+                                <button type="button" id="export-sales-pdf" class="export-btn-collapsible">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-pdf" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    Export PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Menu Management Section -->
+            <section class="admin-section">
+                <h2 class="menu-management-title">Manage Menu</h2>
+                
+                <!-- Centered Controls Row -->
+                <div class="manage-menu-controls-row">
+                    <div class="view-toggle-admin">
+                        <button id="admin-grid-view-btn" class="view-btn-admin active" title="Grid View">
+                            <span>⊞</span> Grid
+                        </button>
+                        <button id="admin-list-view-btn" class="view-btn-admin" title="List View">
+                            <span>☰</span> List
+                        </button>
+                    </div>
+                    <button id="add-item-btn" class="menu-add-btn-centered">Add New Item</button>
+                </div>
+                <!-- Category Filter Buttons -->
+                <div class="admin-category-filter-container">
+                    <div id="admin-category-buttons" class="admin-category-buttons">
+                        <!-- Category buttons will be dynamically generated here -->
+                    </div>
+                </div>
+                <!-- Search Bar -->
+                <div class="search-container">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" id="admin-menu-search" class="menu-search" placeholder="Search items by name...">
+                    <button id="admin-clear-search" class="clear-search-btn" title="Clear search" style="display: none;">×</button>
+                </div>
+                <div id="api-status" class="api-status" style="margin-top: 10px; padding: 10px; border-radius: 5px; display: none;"></div>
+                
+                <div id="menu-items-admin" class="menu-items-admin">
+                    <!-- Menu items will be displayed here -->
+                </div>
+            </section>
+
+            <!-- Add/Edit Item Modal -->
+            <div id="item-modal" class="modal hidden">
+                <div class="modal-content large-modal add-item-modal-container">
+                    <!-- Modal Header -->
+                    <div class="modal-header-bar">
+                        <h2 id="modal-title" class="modal-header-title">Add Menu Item</h2>
+                        <button onclick="closeItemModal()" class="modal-close-btn-header" aria-label="Close modal">✕</button>
+                    </div>
+                    
+                    <form id="item-form">
+                        <input type="hidden" id="item-id">
+                        <div class="form-group mb-4">
+                            <label for="item-branch">Branch:</label>
+                            <div class="custom-dropdown-wrapper">
+                                <button type="button" id="item-branch-btn" class="custom-dropdown-btn" data-dropdown="branch">
+                                    <span id="item-branch-text">Select Branch...</span>
+                                    <svg class="custom-dropdown-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                <input type="hidden" id="item-branch" required>
+                                <div id="item-branch-dropdown" class="custom-dropdown-menu" style="display: none;">
+                                    <div class="custom-dropdown-option" data-value="">Select Branch...</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label for="item-name">Item Name:</label>
+                            <input type="text" id="item-name" required>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label for="item-category">Category (Optional):</label>
+                            <div class="custom-dropdown-wrapper">
+                                <button type="button" id="item-category-btn" class="custom-dropdown-btn" data-dropdown="category">
+                                    <span id="item-category-text">Select Category...</span>
+                                    <svg class="custom-dropdown-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                <input type="hidden" id="item-category">
+                                <div id="item-category-dropdown" class="custom-dropdown-menu" style="display: none;">
+                                    <div class="custom-dropdown-option" data-value="">Select Category...</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label for="item-availability">Availability:</label>
+                            <div class="custom-dropdown-wrapper">
+                                <button type="button" id="item-availability-btn" class="custom-dropdown-btn" data-dropdown="availability">
+                                    <span id="item-availability-text">Available</span>
+                                    <svg class="custom-dropdown-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                <input type="hidden" id="item-availability" value="Available">
+                                <div id="item-availability-dropdown" class="custom-dropdown-menu" style="display: none;">
+                                    <div class="custom-dropdown-option" data-value="Available">Available</div>
+                                    <div class="custom-dropdown-option" data-value="Unavailable">Unavailable</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label for="item-image-url">Item Image URL:</label>
+                            <input type="url" id="item-image-url" placeholder="https://example.com/image.jpg">
+                            <small style="color: var(--text-muted); font-size: 0.9em;">Or upload an image file below</small>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label for="item-image">Or Upload Image File:</label>
+                            <input type="file" id="item-image" accept="image/*">
+                            <div id="image-preview" class="image-preview"></div>
+                        </div>
+                        <div class="form-group mb-4">
+                            <label>
+                                <input type="checkbox" id="has-sizes"> Has Size Options (Quarter/Half/Full)
+                            </label>
+                        </div>
+                        <div id="price-single" class="form-group mb-4">
+                            <label for="item-price">Price (₹):</label>
+                            <input type="number" id="item-price" min="0" step="0.01">
+                        </div>
+                        <div id="price-sizes" class="form-group hidden mb-4">
+                            <label>Size Prices:</label>
+                            <div class="size-inputs">
+                                <div>
+                                    <label for="price-quarter">Quarter (₹):</label>
+                                    <input type="number" id="price-quarter" min="0" step="0.01">
+                                </div>
+                                <div>
+                                    <label for="price-half">Half (₹):</label>
+                                    <input type="number" id="price-half" min="0" step="0.01">
+                                </div>
+                                <div>
+                                    <label for="price-full">Full (₹):</label>
+                                    <input type="number" id="price-full" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-success modal-save-btn">Save</button>
+                            <button type="button" id="cancel-btn" class="btn btn-secondary modal-cancel-btn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Runtime Supabase credentials (ignored in git) -->
+    <script src="/supabase-config.js?v=local"></script>
+    <!-- Shared GST + Theme utilities -->
+    <script src="/gst-theme-utils.js"></script>
+    <!-- PDF export libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Supabase API Service (replaces Google Sheets API) -->
+    <script src="/supabase-service.js"></script>
+    <script>
+        // Immediately remove any loaders before page loads
+        (function() {
+            function removeAllLoaders() {
+                const loaders = document.querySelectorAll('.loading-overlay, #admin-loading-overlay, #loading-overlay');
+                loaders.forEach(loader => {
+                    try {
+                        loader.remove();
+                    } catch(e) {}
+                });
+            }
+            // Remove immediately
+            removeAllLoaders();
+            // Remove on DOM ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', removeAllLoaders);
+            } else {
+                removeAllLoaders();
+            }
+            // Remove after a short delay
+            setTimeout(removeAllLoaders, 100);
+            setTimeout(removeAllLoaders, 500);
+        })();
+    </script>
+    <script src="/admin.js"></script>
+</body>
+</html>
+

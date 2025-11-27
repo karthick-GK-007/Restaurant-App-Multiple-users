@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Report & Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <!-- Password Protection Modal -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content">
+            <h2>Admin Login</h2>
+            <input type="password" id="password-input" placeholder="Enter password" autofocus>
+            <button id="login-btn" class="btn btn-primary">Login</button>
+            <p id="error-message" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- Sales Report Panel (Hidden until authenticated) -->
+    <div id="sales-report-panel" class="admin-panel hidden">
+        <header>
+            <h1>Sales Report & Analytics</h1>
+            <a href="admin.html" class="back-link">Back to Admin Panel</a>
+        </header>
+
+        <main>
+            <!-- Sales Report Section -->
+            <section class="admin-section">
+                <h2>Sales Reports & Analytics</h2>
+                <div class="report-buttons">
+                    <button id="generate-report-btn" class="btn btn-primary btn-large">Monthly Sales Report</button>
+                    <button id="view-dashboard" class="btn btn-success btn-large">View Dashboard</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Sales Report Modal -->
+    <div id="sales-report-modal" class="modal hidden">
+        <div class="report-modal-content">
+            <div class="report-modal-header">
+                <h2>Monthly Sales Report</h2>
+                <button id="close-report-modal" class="btn-close">&times;</button>
+            </div>
+            <div class="report-modal-filters">
+                <label>From Date:</label>
+                <input type="date" id="report-from-date">
+                <label>To Date:</label>
+                <input type="date" id="report-to-date">
+                <button id="generate-report" class="btn btn-primary">Generate Report</button>
+                <button id="export-excel" class="btn btn-secondary">Export to Excel</button>
+            </div>
+            <div id="sales-report" class="sales-report-content">
+                <!-- Sales report will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales Dashboard Modal -->
+    <div id="dashboard-modal" class="modal hidden">
+        <div class="dashboard-modal-content">
+            <div class="dashboard-header">
+                <h2>Sales Dashboard</h2>
+                <button id="close-dashboard" class="btn-close">&times;</button>
+            </div>
+            <div class="dashboard-filters">
+                <label>From Date:</label>
+                <input type="date" id="dashboard-from-date">
+                <label>To Date:</label>
+                <input type="date" id="dashboard-to-date">
+                <button id="apply-dashboard-filters" class="btn btn-primary">Apply Filters</button>
+            </div>
+            <div class="dashboard-container">
+                <!-- Summary Cards -->
+                <div class="dashboard-summary">
+                    <div class="summary-card">
+                        <div class="summary-icon">💰</div>
+                        <div class="summary-content">
+                            <h3 id="total-revenue">₹0</h3>
+                            <p>Total Revenue</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">📊</div>
+                        <div class="summary-content">
+                            <h3 id="total-transactions">0</h3>
+                            <p>Total Transactions</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">📈</div>
+                        <div class="summary-content">
+                            <h3 id="avg-order-value">₹0</h3>
+                            <p>Average Order Value</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">🔥</div>
+                        <div class="summary-content">
+                            <h3 id="top-item">-</h3>
+                            <p>Top Selling Item</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Sales Trend (Cumulative)</h3>
+                        <canvas id="cumulative-trend-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Item Sales Distribution</h3>
+                        <canvas id="item-pie-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Daily Sales</h3>
+                        <canvas id="daily-sales-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Revenue by Item</h3>
+                        <canvas id="revenue-bar-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase API Service (replaces Google Sheets API) -->
+    <script src="supabase-service.js"></script>
+    <script src="sales-report.js"></script>
+</body>
+</html>
+

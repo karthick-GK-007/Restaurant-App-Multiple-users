@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Sales Dashboard | Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="premium-dashboard.css">
+</head>
+<body data-theme="dark">
+    <!-- Password Protection Modal -->
+    <div id="password-modal" class="modal glass-modal">
+        <div class="modal-content glass-card premium-modal">
+            <div class="modal-header-premium">
+                <h2>🔐 Admin Access</h2>
+            </div>
+            <input type="password" id="password-input" placeholder="Enter password" autofocus class="premium-input">
+            <button id="login-btn" class="btn-premium btn-primary-premium">Login</button>
+            <p id="error-message" class="error-message-premium"></p>
+        </div>
+    </div>
+
+    <!-- Premium Dashboard (Hidden until authenticated) -->
+    <div id="sales-report-panel" class="premium-dashboard hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">🍽️</div>
+                    <h1 class="logo-text">GK Biryani</h1>
+                </div>
+                <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-page="sales">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Sales</span>
+                </a>
+                <a href="#" class="nav-item" data-page="menu-insights">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Menu Insights</span>
+                </a>
+                <a href="#" class="nav-item" data-page="branch-insights">
+                    <span class="nav-icon">🏢</span>
+                    <span class="nav-text">Branch Insights</span>
+                </a>
+                <a href="#" class="nav-item" data-page="inventory">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Inventory</span>
+                </a>
+                <a href="admin.html" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="dashboard-header glass-header">
+                <div class="header-left">
+                    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <div class="header-title-wrapper">
+                        <h1 class="dashboard-title">Sales Dashboard</h1>
+                        <p class="dashboard-subtitle">Real-time analytics & insights</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    <a href="admin.html" class="back-link-premium">← Admin Panel</a>
+                </div>
+            </header>
+
+            <!-- Page Sections -->
+            <!-- Dashboard Page (Default) -->
+            <div id="page-dashboard" class="page-section">
+                <div class="dashboard-wrapper">
+                <!-- Filter Section -->
+                <div class="filter-section glass-card">
+                    <div class="filter-content">
+                        <label class="filter-label">From Date:</label>
+                        <input type="date" id="dashboard-from-date" class="premium-input">
+                        <label class="filter-label">To Date:</label>
+                        <input type="date" id="dashboard-to-date" class="premium-input">
+                        <button id="apply-dashboard-filters" class="btn-premium btn-gradient">Apply Filters</button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card glass-card neon-card">
+                        <div class="kpi-icon money-icon">💰</div>
+                        <div class="kpi-content">
+                            <h3 id="total-revenue" class="kpi-value">₹0</h3>
+                            <p class="kpi-label">Total Revenue</p>
+                        </div>
+                        <div class="kpi-glow"></div>
+                    </div>
+                    <div class="kpi-card glass-card neon-card">
+                        <div class="kpi-icon transaction-icon">📊</div>
+                        <div class="kpi-content">
+                            <h3 id="total-transactions" class="kpi-value">0</h3>
+                            <p class="kpi-label">Total Transactions</p>
+                        </div>
+                        <div class="kpi-glow"></div>
+                    </div>
+                    <div class="kpi-card glass-card neon-card">
+                        <div class="kpi-icon avg-icon">📈</div>
+                        <div class="kpi-content">
+                            <h3 id="avg-order-value" class="kpi-value">₹0</h3>
+                            <p class="kpi-label">Average Order Value</p>
+                        </div>
+                        <div class="kpi-glow"></div>
+                    </div>
+                    <div class="kpi-card glass-card neon-card">
+                        <div class="kpi-icon top-icon">🔥</div>
+                        <div class="kpi-content">
+                            <h3 id="top-item" class="kpi-value">-</h3>
+                            <p class="kpi-label">Top Selling Item</p>
+                        </div>
+                        <div class="kpi-glow"></div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-container">
+                    <div class="chart-card glass-card neon-border">
+                        <div class="chart-header">
+                            <h3 class="chart-title">📈 Sales Trend (Cumulative)</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="cumulative-trend-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card glass-card neon-border">
+                        <div class="chart-header">
+                            <h3 class="chart-title">🥧 Item Sales Distribution</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="item-pie-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card glass-card neon-border">
+                        <div class="chart-header">
+                            <h3 class="chart-title">📊 Daily Sales</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="daily-sales-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card glass-card neon-border">
+                        <div class="chart-header">
+                            <h3 class="chart-title">💵 Revenue by Item</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="revenue-bar-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insights Panel -->
+                <div class="insights-panel glass-card neon-border">
+                    <div class="insights-header">
+                        <h3 class="insights-title">🤖 AI Insights</h3>
+                        <div class="insights-badge">Live</div>
+                    </div>
+                    <div id="ai-insights-content" class="insights-content">
+                        <div class="insight-item">
+                            <span class="insight-icon">💡</span>
+                            <span class="insight-text">Loading insights...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- Sales Page -->
+            <div id="page-sales" class="page-section hidden">
+                <div id="page-sales-content" class="page-content">
+                    <!-- Content will be dynamically loaded -->
+                </div>
+            </div>
+
+            <!-- Menu Insights Page -->
+            <div id="page-menu-insights" class="page-section hidden">
+                <div id="page-menu-insights-content" class="page-content">
+                    <div class="page-header">
+                        <h2>📈 Menu Insights</h2>
+                        <p>Performance analysis of your menu items</p>
+                    </div>
+                    <div class="loading-placeholder">
+                        <p>Loading menu insights...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branch Insights Page -->
+            <div id="page-branch-insights" class="page-section hidden">
+                <div id="page-branch-insights-content" class="page-content">
+                    <div class="page-header">
+                        <h2>🏢 Branch Insights</h2>
+                        <p>Performance comparison across branches</p>
+                    </div>
+                    <div class="loading-placeholder">
+                        <p>Loading branch insights...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Page -->
+            <div id="page-inventory" class="page-section hidden">
+                <div id="page-inventory-content" class="page-content">
+                    <div class="page-header">
+                        <h2>📦 Inventory Management</h2>
+                        <p>Track and manage your inventory</p>
+                    </div>
+                    <div class="inventory-placeholder">
+                        <p>Inventory management features coming soon...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Chat Modal -->
+    <div id="ai-chat-modal" class="ai-chat-modal hidden">
+        <div class="ai-chat-overlay" id="ai-chat-overlay"></div>
+        <div class="ai-chat-container glass-card">
+            <div class="ai-chat-header">
+                <div class="ai-chat-header-left">
+                    <div class="ai-avatar">🤖</div>
+                    <div>
+                        <h3 class="ai-chat-title">AI Assistant</h3>
+                        <p class="ai-chat-subtitle">Ask me anything about your sales</p>
+                    </div>
+                </div>
+                <button class="ai-chat-close" id="ai-chat-close" aria-label="Close chat">
+                    <span>&times;</span>
+                </button>
+            </div>
+            
+            <div class="ai-chat-messages" id="ai-chat-messages">
+                <div class="ai-message">
+                    <div class="message-avatar ai-avatar">🤖</div>
+                    <div class="message-content">
+                        <p>Hello! I'm your AI assistant. I can help you understand your sales data, suggest improvements, and answer questions about your business performance.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ai-chat-input-container">
+                <div class="ai-chat-input-wrapper">
+                    <input type="text" id="ai-chat-input" class="ai-chat-input premium-input" placeholder="Ask me anything..." autocomplete="off">
+                    <button id="ai-chat-send" class="ai-chat-send btn-premium">
+                        <span class="send-icon">→</span>
+                    </button>
+                </div>
+                <div class="ai-typing-indicator hidden" id="ai-typing">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Chat Trigger Button -->
+    <button class="ai-chat-trigger glass-card neon-pulse" id="ai-chat-trigger" aria-label="Open AI chat">
+        <span class="ai-trigger-icon">🤖</span>
+    </button>
+
+    <!-- Scripts -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-service.js"></script>
+    <script src="sales-report.js"></script>
+    <script src="premium-dashboard.js"></script>
+</body>
+</html>
+

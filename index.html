@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#C6A667">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Restaurant Menu & Billing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        // Redirect kagzso paths to hash-based routing for static hosting
+        (function() {
+            const pathname = window.location.pathname;
+            if (pathname.includes('/kagzso/user/')) {
+                // Redirect to index.html with hash
+                window.location.replace('/index.html#' + pathname);
+            } else if (pathname.includes('/kagzso/admin/')) {
+                // Redirect to admin.html with hash
+                window.location.replace('/admin.html#' + pathname);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1 id="restaurant-title">Restaurant Menu</h1>
+            <div class="header-actions">
+                <div class="branch-selector-wrapper">
+                    <div id="branch-tiles" class="branch-tiles">
+                    </div>
+                    <button id="admin-panel-link-btn" class="admin-link-branch">Admin Panel</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Menu Display Section -->
+        <section id="menu-section" class="menu-section">
+            <div class="menu-header">
+                <h2>Our Menu</h2>
+                <div class="header-controls">
+                    <div class="view-toggle">
+                        <button id="grid-view-btn" class="view-btn active" title="Grid View">
+                            <span>⊞</span> Grid
+                        </button>
+                        <button id="list-view-btn" class="view-btn" title="List View">
+                            <span>☰</span> List
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Search Bar -->
+            <div class="search-container">
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="menu-search" class="menu-search" placeholder="Search items by name...">
+                <button id="clear-search" class="clear-search-btn" title="Clear search" style="display: none;">×</button>
+            </div>
+            <div id="menu-grid" class="menu-grid">
+                <!-- Menu items will be dynamically loaded here -->
+            </div>
+        </section>
+
+        <!-- Cart Section with Category Filter -->
+        <div class="cart-wrapper">
+            <section id="cart-section" class="cart-section">
+                <h2>Shopping Cart</h2>
+                <div id="cart-items" class="cart-items">
+                    <p class="empty-cart">Your cart is empty</p>
+                </div>
+                <div class="cart-total">
+                    <strong>Total: ₹<span id="cart-total">0</span></strong>
+                </div>
+                <div class="cart-actions">
+                    <button id="clear-cart" class="btn btn-secondary">Clear Cart</button>
+                    <button id="pay-now" class="btn btn-primary" disabled>Pay Now</button>
+                </div>
+            </section>
+
+            <!-- Category Filter Buttons -->
+            <div class="category-filter-container">
+                <div id="category-buttons" class="category-buttons">
+                    <!-- Category buttons will be dynamically generated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing Section (Initially Hidden) -->
+        <section id="billing-section" class="billing-section hidden">
+            <h2 class="billing-title">Payment</h2>
+            <div class="billing-content">
+                <div class="billing-card payment-mode-section">
+                    <label class="billing-label">Payment Mode</label>
+                    <div class="payment-mode-buttons">
+                        <button class="payment-mode-btn" data-mode="Cash">
+                            <span class="btn-icon">💵</span>
+                            <span class="btn-text">Cash</span>
+                        </button>
+                        <button class="payment-mode-btn" data-mode="Card">
+                            <span class="btn-icon">💳</span>
+                            <span class="btn-text">Card</span>
+                        </button>
+                        <button class="payment-mode-btn" data-mode="UPI">
+                            <span class="btn-icon">📱</span>
+                            <span class="btn-text">UPI</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="payment-mode" value="UPI">
+                </div>
+                <div class="billing-card order-type-section">
+                    <label class="billing-label">Order Type</label>
+                    <div class="order-type-buttons">
+                        <button class="order-type-btn active" data-type="Dining">
+                            <span class="btn-icon">🍽</span>
+                            <span class="btn-text">Dining</span>
+                        </button>
+                        <button class="order-type-btn" data-type="Takeaway">
+                            <span class="btn-icon">🥡</span>
+                            <span class="btn-text">Takeaway</span>
+                        </button>
+                        <button class="order-type-btn" data-type="Online Order">
+                            <span class="btn-icon">🚚</span>
+                            <span class="btn-text">Online</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="order-type" value="Dining">
+                </div>
+                <div class="billing-card qr-upload">
+                    <label class="billing-label">QR Code</label>
+                    <div id="branch-qr" class="branch-qr"></div>
+                    <div class="qr-actions">
+                        <button id="change-qr-btn" class="btn btn-secondary">Change QR</button>
+                    </div>
+                    <!-- Hidden file input for mobile compatibility -->
+                    <input type="file" id="qr-file-input" accept="image/*" style="display: none;">
+                </div>
+                <div id="bill-details" class="billing-card bill-details"></div>
+                <div class="billing-actions">
+                    <button id="confirm-payment" class="btn btn-success">Confirm Payment</button>
+                    <button id="print-bill" class="btn btn-primary" disabled>Print Bill</button>
+                    <button id="back-to-menu" class="btn btn-secondary">Back to Menu</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Print Bill Section (Hidden) -->
+    <section id="print-bill-section" class="print-bill-section hidden">
+        <div class="print-bill-content">
+            <div id="print-bill-details"></div>
+        </div>
+    </section>
+
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Runtime Supabase credentials (ignored in git) -->
+    <script src="supabase-config.js?v=local"></script>
+    <!-- Shared GST + Theme utilities -->
+    <script src="gst-theme-utils.js"></script>
+    <!-- Supabase API Service (replaces Google Sheets API) -->
+    <script src="supabase-service.js"></script>
+    <script>
+        // Immediately remove any loaders before page loads
+        (function() {
+            function removeAllLoaders() {
+                const loaders = document.querySelectorAll('.loading-overlay, #loading-overlay, #admin-loading-overlay');
+                loaders.forEach(loader => {
+                    try {
+                        loader.style.display = 'none';
+                        loader.remove();
+                    } catch(e) {}
+                });
+            }
+            // Remove immediately
+            removeAllLoaders();
+            // Remove on DOM ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', removeAllLoaders);
+            } else {
+                removeAllLoaders();
+            }
+            // Remove after delays as backup
+            setTimeout(removeAllLoaders, 100);
+            setTimeout(removeAllLoaders, 500);
+            setTimeout(removeAllLoaders, 2000);
+        })();
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
+

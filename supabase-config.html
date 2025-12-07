@@ -173,13 +173,16 @@
         const statusDiv = document.getElementById('status');
         const saveBtn = document.getElementById('save-btn');
 
-        // Load existing config
+        // Load existing config (handle both formats for backward compatibility)
         const existingConfig = localStorage.getItem('supabase_config');
         if (existingConfig) {
             try {
                 const config = JSON.parse(existingConfig);
-                document.getElementById('supabase-url').value = config.supabaseUrl || '';
-                document.getElementById('supabase-key').value = config.supabaseKey || '';
+                // Support both old format {supabaseUrl, supabaseKey} and new format {url, anonKey}
+                const url = config.url || config.supabaseUrl || '';
+                const key = config.anonKey || config.supabaseKey || '';
+                document.getElementById('supabase-url').value = url;
+                document.getElementById('supabase-key').value = key;
             } catch (e) {
                 console.error('Error loading existing config:', e);
             }
@@ -214,10 +217,10 @@
                     throw error;
                 }
 
-                // Save configuration
+                // Save configuration in the format expected by supabase-service.js
                 localStorage.setItem('supabase_config', JSON.stringify({
-                    supabaseUrl: url,
-                    supabaseKey: key
+                    url: url,
+                    anonKey: key
                 }));
 
                 showStatus('✅ Configuration saved successfully! You can now use the application.', 'success');

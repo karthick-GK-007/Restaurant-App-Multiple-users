@@ -1,4 +1,5 @@
-supabase-config.js
+# supabase-config.js is now safe to commit (reads from localStorage as fallback)
+# supabase-config.js
 
 # Logs
 *.log

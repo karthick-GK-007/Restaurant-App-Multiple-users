@@ -368,7 +368,12 @@ class SupabaseAPI {
         try {
             const stored = localStorage.getItem('supabase_config');
             if (stored) {
-                return JSON.parse(stored);
+                const config = JSON.parse(stored);
+                // Handle both formats: {url, anonKey} and {supabaseUrl, supabaseKey}
+                if (config.supabaseUrl && config.supabaseKey) {
+                    return { url: config.supabaseUrl, anonKey: config.supabaseKey };
+                }
+                return config;
             }
         } catch (error) {
             console.warn('Failed to parse stored Supabase config', error);

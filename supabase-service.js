@@ -877,12 +877,39 @@ class SupabaseAPI {
         // The database function matches: hotel_id, slug, name, or REPLACE(name, ' ', '-')
         const identifiersToTry = [
             trimmedIdentifier,                    // Original: "suganya-hotel"
-            trimmedIdentifier.replace(/-hotel$/, ''), // Remove "-hotel": "suganya"
-            trimmedIdentifier.replace(/-hotel$/i, ''), // Case-insensitive: "suganya"
+            trimmedIdentifier.replace(/-hotel$/i, ''), // Remove "-hotel": "suganya"
         ];
         
-        // Remove duplicates
-        const uniqueIdentifiers = [...new Set(identifiersToTry)];
+        // Also try to fetch hotel ID if we have a hotel name
+        // This helps when the URL has "suganya-hotel" but we need "Hotel-001"
+        try {
+            const hotelKey = trimmedIdentifier.replace(/-hotel$/i, '');
+            if (hotelKey && hotelKey !== trimmedIdentifier) {
+                // Try to find hotel by name to get the actual hotel_id
+                const { data: hotels, error: hotelError } = await client
+                    .from('hotels')
+                    .select('id, name, slug')
+                    .or(`name.ilike.%${hotelKey}%,slug.ilike.%${hotelKey}%,name.ilike.%${trimmedIdentifier}%`);
+                
+                if (!hotelError && hotels && hotels.length > 0) {
+                    // Add the actual hotel IDs to try
+                    hotels.forEach(hotel => {
+                        if (hotel.id) identifiersToTry.push(hotel.id);
+                        if (hotel.slug) identifiersToTry.push(hotel.slug);
+                        if (hotel.name) {
+                            identifiersToTry.push(hotel.name);
+                            identifiersToTry.push(hotel.name.toLowerCase().replace(/\s+/g, '-'));
+                        }
+                    });
+                    console.log('🔍 Found hotels matching identifier:', hotels.map(h => ({ id: h.id, name: h.name, slug: h.slug })));
+                }
+            }
+        } catch (fetchError) {
+            console.warn('⚠️ Could not fetch hotel data:', fetchError.message);
+        }
+        
+        // Remove duplicates and empty values
+        const uniqueIdentifiers = [...new Set(identifiersToTry.filter(id => id && id.trim()))];
         
         console.log('🔍 Trying hotel identifiers:', uniqueIdentifiers);
         

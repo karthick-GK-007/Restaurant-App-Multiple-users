@@ -367,25 +367,42 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Runtime Supabase credentials - MUST load before supabase-service.js -->
     <script>
-        // Load Supabase config from localStorage synchronously
+        // Load Supabase config from localStorage synchronously - MUST run before supabase-service.js
         (function() {
             'use strict';
             try {
                 const stored = localStorage.getItem('supabase_config');
+                console.log('🔍 Checking localStorage:', stored ? 'Found' : 'Not found');
+                
                 if (stored) {
                     const config = JSON.parse(stored);
+                    console.log('🔍 Parsed config keys:', Object.keys(config));
+                    
                     let url, anonKey;
                     if (config.url && config.anonKey) {
                         url = config.url;
                         anonKey = config.anonKey;
+                        console.log('🔍 Using format: {url, anonKey}');
                     } else if (config.supabaseUrl && config.supabaseKey) {
                         url = config.supabaseUrl;
                         anonKey = config.supabaseKey;
+                        console.log('🔍 Using format: {supabaseUrl, supabaseKey}');
                     }
+                    
                     if (url && anonKey) {
-                        window.SUPABASE_CONFIG = { url: url, anonKey: anonKey };
-                        console.log('✅ Supabase config loaded from localStorage');
+                        window.SUPABASE_CONFIG = { 
+                            url: url.trim(), 
+                            anonKey: anonKey.trim() 
+                        };
+                        console.log('✅ window.SUPABASE_CONFIG set:', {
+                            url: window.SUPABASE_CONFIG.url.substring(0, 30) + '...',
+                            hasAnonKey: !!window.SUPABASE_CONFIG.anonKey
+                        });
+                    } else {
+                        console.error('❌ Missing url or anonKey:', { hasUrl: !!url, hasAnonKey: !!anonKey, config });
                     }
+                } else {
+                    console.warn('⚠️ No supabase_config found in localStorage');
                 }
             } catch (error) {
                 console.error('❌ Failed to load Supabase config:', error);

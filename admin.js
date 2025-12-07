@@ -712,18 +712,31 @@ function setupPasswordAuth() {
             return;
         }
         
-        const canVerifyViaSupabase = supabaseApi && typeof supabaseApi.verifyHotelAdminPassword === 'function';
+        // Ensure Supabase API is initialized before password verification
+        const api = supabaseApi || window.apiService;
+        const canVerifyViaSupabase = api && typeof api.verifyHotelAdminPassword === 'function';
         let isPasswordValid = false;
         const originalButtonText = loginBtn.textContent;
+        
         if (canVerifyViaSupabase) {
             try {
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'Verifying...';
-                const isValid = await supabaseApi.verifyHotelAdminPassword({
+                
+                // Ensure the Supabase client is initialized
+                if (api.initialize && typeof api.initialize === 'function') {
+                    await api.initialize();
+                }
+                
+                const isValid = await api.verifyHotelAdminPassword({
                     hotelIdentifier,
                     password: enteredPassword
                 });
                 isPasswordValid = isValid === true;
+                
+                if (!isPasswordValid) {
+                    errorMessage.textContent = 'Incorrect password. Please try again.';
+                }
             } catch (verifyError) {
                 console.error('❌ Failed to verify hotel admin password:', verifyError);
                 errorMessage.textContent = 'Unable to verify password right now. Please try again.';

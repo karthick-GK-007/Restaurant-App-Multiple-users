@@ -1,20 +1,20 @@
 {
   "rewrites": [
     {
-      "source": "/kagzso/admin/:hotel/:branch",
-      "destination": "/admin.html"
+      "source": "/kagzso/admin/:hotel/:branch*",
+      "destination": "/admin.html?path=/kagzso/admin/:hotel/:branch*"
     },
     {
       "source": "/kagzso/admin/:hotel",
-      "destination": "/admin.html"
+      "destination": "/admin.html?path=/kagzso/admin/:hotel"
     },
     {
-      "source": "/kagzso/user/:hotel/:branch",
-      "destination": "/index.html"
+      "source": "/kagzso/user/:hotel/:branch*",
+      "destination": "/index.html?path=/kagzso/user/:hotel/:branch*"
     },
     {
       "source": "/kagzso/user/:hotel",
-      "destination": "/index.html"
+      "destination": "/index.html?path=/kagzso/user/:hotel"
     }
   ],
   "headers": [
@@ -37,4 +37,3 @@
     }
   ]
 }
-

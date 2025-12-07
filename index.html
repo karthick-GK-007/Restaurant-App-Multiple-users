@@ -12,35 +12,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script>
-        // Handle kagzso paths - convert to hash-based routing for client-side navigation
+        // Handle kagzso paths - Vercel rewrites /kagzso/user/... to /index.html?path=...
+        // Convert the path query param to hash-based routing
         (function() {
             const pathname = window.location.pathname;
             const hash = window.location.hash;
+            const urlParams = new URLSearchParams(window.location.search);
+            const pathParam = urlParams.get('path');
             
-            // If we're already on index.html with the correct hash, we're good
-            if (pathname === '/index.html' && hash.startsWith('#/kagzso/user/')) {
-                return; // Already on correct page
+            // If we already have the correct hash, we're good
+            if (hash.startsWith('#/kagzso/user/')) {
+                return;
             }
             
-            // If Vercel rewrote /kagzso/user/... to /index.html, add hash for client-side routing
-            if (pathname === '/index.html' && !hash) {
-                // Check referrer or reconstruct from current URL
-                const fullPath = window.location.pathname + window.location.search;
-                if (fullPath.includes('kagzso')) {
-                    const match = fullPath.match(/\/kagzso\/(admin|user)\/([^\/]+)(?:\/([^\/]+))?/);
-                    if (match) {
-                        const [, type, hotel, branch] = match;
-                        const hashPath = branch 
-                            ? `#/kagzso/${type}/${hotel}/${branch}`
-                            : `#/kagzso/${type}/${hotel}`;
-                        const targetPage = type === 'admin' ? '/admin.html' : '/index.html';
-                        window.location.replace(targetPage + hashPath);
-                        return;
-                    }
-                }
+            // If Vercel rewrote and passed path as query param, convert to hash
+            if (pathname === '/index.html' && pathParam && pathParam.startsWith('/kagzso/user/')) {
+                window.location.replace('/index.html#' + pathParam);
+                return;
             }
             
-            // Fallback: if we're on a kagzso path directly (shouldn't happen with Vercel)
+            // Fallback: if we're directly on a kagzso path (shouldn't happen with Vercel)
             if (pathname.startsWith('/kagzso/user/')) {
                 window.location.replace('/index.html#' + pathname);
             } else if (pathname.startsWith('/kagzso/admin/')) {

@@ -889,22 +889,27 @@ class SupabaseAPI {
         // Try each identifier format
         for (const identifier of uniqueIdentifiers) {
             try {
+                console.log(`🔍 Attempting verification with identifier: "${identifier}"`);
                 const { data, error } = await client.rpc('verify_hotel_admin_password', {
                     p_hotel_identifier: identifier,
                     p_password: trimmedPassword
                 });
                 
+                console.log(`🔍 RPC response for "${identifier}":`, { data, error: error ? error.message : null });
+                
                 if (error) {
-                    console.warn(`⚠️ Verification failed for "${identifier}":`, error.message);
+                    console.warn(`⚠️ Verification failed for "${identifier}":`, error.message, error);
                     continue; // Try next identifier
                 }
                 
                 if (data === true) {
                     console.log(`✅ Password verified successfully with identifier: "${identifier}"`);
                     return true;
+                } else {
+                    console.log(`❌ Password verification returned false for "${identifier}"`);
                 }
             } catch (err) {
-                console.warn(`⚠️ Error verifying with "${identifier}":`, err.message);
+                console.warn(`⚠️ Error verifying with "${identifier}":`, err.message, err);
                 continue; // Try next identifier
             }
         }

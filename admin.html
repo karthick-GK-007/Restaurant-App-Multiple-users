@@ -368,48 +368,46 @@
     <!-- Runtime Supabase credentials - MUST load before supabase-service.js -->
     <script>
         // Load Supabase config from localStorage synchronously - MUST run before supabase-service.js
+        // This ensures window.SUPABASE_CONFIG is set immediately
         (function() {
             'use strict';
             try {
                 const stored = localStorage.getItem('supabase_config');
-                console.log('🔍 Checking localStorage:', stored ? 'Found' : 'Not found');
                 
                 if (stored) {
                     const config = JSON.parse(stored);
-                    console.log('🔍 Parsed config keys:', Object.keys(config));
                     
-                    let url, anonKey;
-                    if (config.url && config.anonKey) {
-                        url = config.url;
-                        anonKey = config.anonKey;
-                        console.log('🔍 Using format: {url, anonKey}');
-                    } else if (config.supabaseUrl && config.supabaseKey) {
-                        url = config.supabaseUrl;
-                        anonKey = config.supabaseKey;
-                        console.log('🔍 Using format: {supabaseUrl, supabaseKey}');
-                    }
+                    // Extract URL and key from any format
+                    const url = (config.url || config.supabaseUrl || '').trim();
+                    const anonKey = (config.anonKey || config.supabaseKey || '').trim();
                     
                     if (url && anonKey) {
+                        // Set window.SUPABASE_CONFIG immediately
                         window.SUPABASE_CONFIG = { 
-                            url: url.trim(), 
-                            anonKey: anonKey.trim() 
+                            url: url, 
+                            anonKey: anonKey
                         };
-                        console.log('✅ window.SUPABASE_CONFIG set:', {
-                            url: window.SUPABASE_CONFIG.url.substring(0, 30) + '...',
-                            hasAnonKey: !!window.SUPABASE_CONFIG.anonKey
-                        });
+                        console.log('✅ window.SUPABASE_CONFIG set from localStorage');
                     } else {
-                        console.error('❌ Missing url or anonKey:', { hasUrl: !!url, hasAnonKey: !!anonKey, config });
+                        console.error('❌ Config missing url or anonKey:', { 
+                            hasUrl: !!url, 
+                            hasAnonKey: !!anonKey,
+                            configKeys: Object.keys(config)
+                        });
                     }
                 } else {
-                    console.warn('⚠️ No supabase_config found in localStorage');
+                    console.warn('⚠️ No supabase_config in localStorage. Visit /supabase-config.html to configure.');
                 }
             } catch (error) {
                 console.error('❌ Failed to load Supabase config:', error);
             }
+            
+            // Verify it's set
+            if (!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || !window.SUPABASE_CONFIG.anonKey) {
+                console.error('❌ window.SUPABASE_CONFIG not properly set!', window.SUPABASE_CONFIG);
+            }
         })();
     </script>
-    <script src="supabase-config.js?v=local"></script>
     <!-- Shared GST + Theme utilities -->
     <script src="/gst-theme-utils.js"></script>
     <!-- PDF export libraries -->

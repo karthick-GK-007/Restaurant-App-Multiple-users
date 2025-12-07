@@ -173,7 +173,33 @@
 
     <!-- Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Runtime Supabase credentials (ignored in git) -->
+    <!-- Runtime Supabase credentials - MUST load before supabase-service.js -->
+    <script>
+        // Load Supabase config from localStorage synchronously
+        (function() {
+            'use strict';
+            try {
+                const stored = localStorage.getItem('supabase_config');
+                if (stored) {
+                    const config = JSON.parse(stored);
+                    let url, anonKey;
+                    if (config.url && config.anonKey) {
+                        url = config.url;
+                        anonKey = config.anonKey;
+                    } else if (config.supabaseUrl && config.supabaseKey) {
+                        url = config.supabaseUrl;
+                        anonKey = config.supabaseKey;
+                    }
+                    if (url && anonKey) {
+                        window.SUPABASE_CONFIG = { url: url, anonKey: anonKey };
+                        console.log('✅ Supabase config loaded from localStorage');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Failed to load Supabase config:', error);
+            }
+        })();
+    </script>
     <script src="supabase-config.js?v=local"></script>
     <!-- Shared GST + Theme utilities -->
     <script src="gst-theme-utils.js"></script>

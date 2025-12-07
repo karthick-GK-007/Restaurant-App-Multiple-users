@@ -707,6 +707,8 @@ function setupPasswordAuth() {
         }
 
         const hotelIdentifier = getHotelIdentifierForAuth();
+        console.log('🔍 Hotel identifier for auth:', hotelIdentifier);
+        
         if (!hotelIdentifier) {
             errorMessage.textContent = 'Unable to determine hotel context. Please open the admin panel via a hotel-specific URL.';
             return;
@@ -715,6 +717,8 @@ function setupPasswordAuth() {
         // Ensure Supabase API is initialized before password verification
         const api = supabaseApi || window.apiService;
         const canVerifyViaSupabase = api && typeof api.verifyHotelAdminPassword === 'function';
+        console.log('🔍 Can verify via Supabase:', canVerifyViaSupabase, 'API:', api ? 'exists' : 'missing');
+        
         let isPasswordValid = false;
         const originalButtonText = loginBtn.textContent;
         
@@ -725,13 +729,17 @@ function setupPasswordAuth() {
                 
                 // Ensure the Supabase client is initialized
                 if (api.initialize && typeof api.initialize === 'function') {
+                    console.log('🔍 Initializing Supabase API...');
                     await api.initialize();
+                    console.log('✅ Supabase API initialized');
                 }
                 
+                console.log('🔍 Verifying password for hotel:', hotelIdentifier);
                 const isValid = await api.verifyHotelAdminPassword({
                     hotelIdentifier,
                     password: enteredPassword
                 });
+                console.log('🔍 Password verification result:', isValid);
                 isPasswordValid = isValid === true;
                 
                 if (!isPasswordValid) {

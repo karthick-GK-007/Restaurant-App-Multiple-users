@@ -12,6 +12,12 @@ if (!window.BranchRouter) {
             return trimmed ? decodeURIComponent(trimmed).toLowerCase() : null;
         };
 
+        const normalizeHotelNameForUrl = (value) => {
+            const normalized = normalize(value);
+            if (!normalized) return null;
+            return normalized.replace(/\s+/g, '-');
+        };
+
         // Parse path-based URL: /kagzso/admin/{hotel_name}/{branch_slug} or /kagzso/user/{hotel_name}/{branch_slug}
         // Also supports hash-based routing: #/kagzso/admin/... (for static hosting)
         const parsePath = () => {
@@ -81,8 +87,10 @@ if (!window.BranchRouter) {
             if (hotelKey) {
                 // Try matching by hotel name first (for kagzso format)
                 if (branch.hotelName) {
-                    const hotelName = String(branch.hotelName).toLowerCase();
-                    if (hotelName === hotelKey) return true;
+                    const hotelNameForUrl = normalizeHotelNameForUrl(branch.hotelName);
+                        if (hotelNameForUrl === hotelKey) return true;
+                    const rawHotelName = normalize(branch.hotelName);
+                    if (rawHotelName === hotelKey) return true;
                 }
                 // Fallback to hotel_id matching
                 if (branch.hotel_id) {
@@ -251,11 +259,13 @@ if (!window.BranchRouter) {
                 // Find hotel by matching hotel name (for kagzso format) or hotel_id (for legacy)
                 const hotelBranches = branches.filter(branch => {
                     if (isKagzsoFormat && branch.hotelName) {
-                        // Match by hotel name (kagzso format)
-                        const branchHotelName = String(branch.hotelName).toLowerCase();
-                        return branchHotelName === hotelKey;
+                        const branchHotelNameSlug = normalizeHotelNameForUrl(branch.hotelName);
+                        if (branchHotelNameSlug && branchHotelNameSlug === hotelKey) {
+                            return true;
+                        }
+                        const rawBranchHotelName = normalize(branch.hotelName);
+                        return rawBranchHotelName === hotelKey;
                     } else {
-                        // Match by hotel_id (legacy format)
                         const branchHotelId = String(branch.hotel_id || branch.hotelId || '').toLowerCase();
                         return branchHotelId === hotelKey;
                     }
@@ -832,6 +842,24 @@ class SupabaseAPI {
         return true;
     }
 
+    async verifyHotelAdminPassword({ hotelIdentifier, password }) {
+        const trimmedIdentifier = hotelIdentifier ? String(hotelIdentifier).trim() : '';
+        const trimmedPassword = password ? String(password).trim() : '';
+        if (!trimmedIdentifier || !trimmedPassword) {
+            throw new Error('Hotel identifier and password are required for verification');
+        }
+        const client = await this.ensureClient();
+        const { data, error } = await client.rpc('verify_hotel_admin_password', {
+            p_hotel_identifier: trimmedIdentifier,
+            p_password: trimmedPassword
+        });
+        if (error) {
+            console.error('❌ Supabase verify_hotel_admin_password error:', error);
+            throw error;
+        }
+        return data === true;
+    }
+
     parseDecimal(value) {
         if (value === null || value === undefined || value === '') return null;
         const parsed = parseFloat(value);
@@ -843,6 +871,8 @@ class SupabaseAPI {
             id: item.id,
             branchId: item.branch_id,
             branchName: item.branch_name || '',
+            hotelId: item.hotel_id || null,
+            hotel_id: item.hotel_id || null, // Keep both for compatibility
             name: item.name,
             category: item.category || '',
             price: this.parseDecimal(item.price),

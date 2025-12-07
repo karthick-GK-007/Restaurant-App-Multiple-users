@@ -1,3 +1,21 @@
 supabase-config.js
 
+# Logs
+*.log
+server-start.log
+
+# Archives
+*.zip
+*.rar
+*.7z
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if any)
+node_modules/
+
+# Backup directories
+backup/
 

@@ -1,0 +1,62 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Kushka Biriyani",
+      "price": 150,
+      "image": "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+      "hasSizes": false
+    },
+    {
+      "id": 2,
+      "name": "Egg Biryani",
+      "price": 180,
+      "image": "https://images.pexels.com/photos/1640770/pexels-photo-1640770.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+      "hasSizes": false
+    },
+    {
+      "id": 3,
+      "name": "Chicken Biryani",
+      "price": 250,
+      "image": "https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+      "hasSizes": false
+    },
+    {
+      "id": 4,
+      "name": "Mutton Biryani",
+      "price": 350,
+      "image": "https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+      "hasSizes": false
+    },
+    {
+      "id": 5,
+      "name": "Kebab",
+      "price": 200,
+      "image": "https://images.pexels.com/photos/699953/pexels-photo-699953.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+      "hasSizes": false
+    },
+    {
+      "id": 6,
+      "name": "Tandoori",
+      "hasSizes": true,
+      "sizes": {
+        "quarter": {"price": 200},
+        "half": {"price": 350},
+        "full": {"price": 650}
+      },
+      "image": "https://images.pexels.com/photos/1660030/pexels-photo-1660030.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop"
+    },
+    {
+      "id": 7,
+      "name": "Grilled",
+      "hasSizes": true,
+      "sizes": {
+        "quarter": {"price": 180},
+        "half": {"price": 320},
+        "full": {"price": 600}
+      },
+      "image": "https://images.pexels.com/photos/1552641/pexels-photo-1552641.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop"
+    }
+  ]
+}
+

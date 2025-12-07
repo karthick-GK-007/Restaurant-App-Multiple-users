@@ -17,6 +17,27 @@ Implemented path-based URL routing with separate admin and user URLs stored in t
 - Populates URLs using format: `kagzso/{admin|user}/{hotel.name}/{branch.slug}`
 - Adds indexes and unique constraints
 
+### Per-Hotel Admin Passwords
+
+**File**: `migrations/20251128_add_hotel_admins_auth.sql`
+- Creates `hotel_admins` table with `hotel_id`, `password_hash`, optional `password_hint`
+- Seeds default passwords for `Hotel-001`–`Hotel-004` (hashed with `pgcrypto`)
+- Adds RPC `verify_hotel_admin_password(identifier, password)` so the frontend can validate credentials without revealing hashes
+- Grants execute permission to `anon`/`authenticated` roles used by Supabase client
+- **Follow-up fix**: `migrations/20251128_fix_hotel_admins_pgcrypto.sql` installs `pgcrypto` into the shared `extensions` schema, sets `search_path = public, extensions`, and allows matching by hotel ID, slug, plain name, or the slugified version of the name (spaces → hyphens). This ensures URLs like `/kagzso/admin/mano-fast-food/...` authenticate correctly.
+
+**Updating/adding passwords**
+```sql
+INSERT INTO hotel_admins (hotel_id, password_hash, password_hint)
+VALUES
+  ('Hotel-005', crypt('newpass@123', gen_salt('bf')), 'Optional hint')
+ON CONFLICT (hotel_id) DO UPDATE
+SET password_hash = EXCLUDED.password_hash,
+    password_hint = EXCLUDED.password_hint,
+    updated_at = NOW();
+```
+Use the hotel `id`, `slug`, or `name` in URLs— the RPC matches any of those identifiers.
+
 ## URL Format Examples
 
 ### Admin URLs

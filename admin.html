@@ -64,12 +64,19 @@
             <div class="admin-header-banner-container">
                 <!-- BANNER BLOCK -->
                 <div id="admin-banner-block" class="admin-banner-block-new rounded-xl shadow-sm p-6 mb-4 text-center">
-                    <h1 id="restaurant-title-admin-header" class="text-2xl font-bold tracking-wide mb-1">Restaurant Menu</h1>
-                    <p class="text-sm opacity-80 -mt-1">Admin Panel</p>
-                    <h2 class="text-lg font-semibold tracking-tight mt-1">Menu Management</h2>
+                    <h1 id="restaurant-title-admin-header" class="text-2xl font-bold tracking-wide mb-1 collapsible-header" style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;" data-target="admin-banner-content,admin-under-banner-content">
+                        <span>Restaurant Menu</span>
+                        <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </h1>
+                    <div id="admin-banner-content" class="admin-banner-content collapsible-content" style="display: none;">
+                        <p class="text-sm opacity-80 -mt-1">Admin Panel</p>
+                        <h2 class="text-lg font-semibold tracking-tight mt-1">Menu Management</h2>
+                    </div>
                 </div>
                 <!-- UNDER-BANNER CONTENT -->
-                <div class="admin-under-banner-content">
+                <div id="admin-under-banner-content" class="admin-under-banner-content collapsible-content">
                     <div class="admin-branch-buttons-wrapper">
                         <div id="admin-branch-tiles" class="branch-tiles">
                             <button class="branch-tile active" data-branch-id="">All Branches</button>

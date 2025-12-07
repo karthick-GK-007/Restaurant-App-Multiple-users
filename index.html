@@ -28,8 +28,13 @@
 <body>
     <header>
         <div class="header-content">
-            <h1 id="restaurant-title">Restaurant Menu</h1>
-            <div class="header-actions">
+            <h1 id="restaurant-title" class="collapsible-header" data-target="header-actions">
+                <span>Restaurant Menu</span>
+                <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </h1>
+            <div id="header-actions" class="header-actions collapsible-content">
                 <div class="branch-selector-wrapper">
                     <div id="branch-tiles" class="branch-tiles">
                     </div>
@@ -72,7 +77,13 @@
         <!-- Cart Section with Category Filter -->
         <div class="cart-wrapper">
             <section id="cart-section" class="cart-section">
-                <h2>Shopping Cart</h2>
+                <h2 class="collapsible-header" data-target="cart-content">
+                    <span>Shopping Cart</span>
+                    <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </h2>
+                <div id="cart-content" class="collapsible-content" style="display: none;">
                 <div id="cart-items" class="cart-items">
                     <p class="empty-cart">Your cart is empty</p>
                 </div>
@@ -82,6 +93,7 @@
                 <div class="cart-actions">
                     <button id="clear-cart" class="btn btn-secondary">Clear Cart</button>
                     <button id="pay-now" class="btn btn-primary" disabled>Pay Now</button>
+                </div>
                 </div>
             </section>
 

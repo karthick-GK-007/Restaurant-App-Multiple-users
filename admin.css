@@ -4,6 +4,44 @@
     font-size: 0.95rem;
 }
 
+/* Collapsible sections with chevron icons */
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    gap: 8px;
+}
+
+.collapsible-header .chevron-icon {
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.collapsible-header[aria-expanded="true"] .chevron-icon,
+.collapsible-content:not([style*="display: none"]) ~ .collapsible-header .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.collapsible-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Admin banner collapsible styling */
+#restaurant-title-admin-header.collapsible-header {
+    justify-content: center;
+}
+
+.admin-banner-content.collapsible-content {
+    margin-top: 8px;
+}
+
+.admin-under-banner-content.collapsible-content {
+    margin-top: 12px;
+}
+
 .gst-settings-section .section-header {
     margin-bottom: 12px;
 }

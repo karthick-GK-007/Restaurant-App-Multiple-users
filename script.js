@@ -1,5 +1,16 @@
 // Cart storage
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
+if (!Array.isArray(cart)) {
+    cart = [];
+}
+cart = cart
+    .map(item => {
+        if (!item || item.id === undefined || item.id === null) {
+            return null;
+        }
+        return { ...item, id: String(item.id) };
+    })
+    .filter(Boolean);
 let menuItems = [];
 let branches = [];
 let selectedHotelId = sessionStorage.getItem('selectedHotelId') || '';
@@ -184,6 +195,33 @@ function getActiveQR(branchId) {
 let viewMode = localStorage.getItem('viewMode') || 'grid';
 
 // Initialize
+// Setup collapsible sections with chevron icons
+function setupCollapsibleSections() {
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+        const targetIds = header.getAttribute('data-target');
+        if (!targetIds) return;
+        
+        const targets = targetIds.split(',').map(id => id.trim()).map(id => document.getElementById(id)).filter(el => el !== null);
+        if (targets.length === 0) return;
+        
+        header.addEventListener('click', () => {
+            const isExpanded = header.getAttribute('aria-expanded') === 'true';
+            targets.forEach(target => {
+                if (isExpanded) {
+                    target.style.display = 'none';
+                } else {
+                    target.style.display = '';
+                }
+            });
+            header.setAttribute('aria-expanded', !isExpanded);
+        });
+        
+        // Set initial state
+        const isInitiallyExpanded = targets.some(t => t.style.display !== 'none' && window.getComputedStyle(t).display !== 'none');
+        header.setAttribute('aria-expanded', isInitiallyExpanded);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Initializing application...');
     
@@ -255,6 +293,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error('❌ Error initializing API service:', error);
     }
+    
+    // Setup collapsible sections
+    setupCollapsibleSections();
     
     // Load branches and menu
     try {
@@ -397,9 +438,11 @@ async function loadRestaurantTitle() {
                 const titleElement = document.getElementById('restaurant-title');
                 if (titleElement) {
                     titleElement.textContent = title;
-                    console.log('✅ Restaurant title loaded from Supabase Config:', title);
-                    return;
                 }
+                // Update page title
+                document.title = `${title} - Menu & Billing`;
+                console.log('✅ Restaurant title loaded from Supabase Config:', title);
+                return;
             }
         } catch (e) {
             console.warn('Could not load restaurant title from Supabase Config:', e);
@@ -1042,7 +1085,7 @@ function setupSearch() {
 // Helper function to check if an item is in the cart
 function isItemInCart(itemId, size = null) {
     return cart.some(cartItem => {
-        if (cartItem.id !== itemId) return false;
+        if (String(cartItem.id) !== String(itemId)) return false;
         // If item has sizes, check size match
         if (size !== null) {
             return cartItem.size === size;
@@ -1233,13 +1276,14 @@ function renderMenu() {
         const categoryDisplay = item.category ? `<div class="menu-item-category">${item.category}</div>` : '';
         
         // Check if item is in cart (for highlighting)
-        const isInCart = isItemInCart(item.id);
+        const normalizedItemId = String(item.id);
+        const isInCart = isItemInCart(normalizedItemId);
         
         if (viewMode === 'list') {
             // MULTI SELECT UI - Add checkbox to list view
-            const isSelected = selectedItems[item.id] || false;
+            const isSelected = selectedItems[normalizedItemId] || false;
             menuItemCard.innerHTML = `
-                <div class="menu-item-select-toggle ${isSelected ? 'selected' : ''} ${isInCart ? 'in-cart' : ''}" data-item-id="${item.id}" title="Select item">
+                <div class="menu-item-select-toggle ${isSelected ? 'selected' : ''} ${isInCart ? 'in-cart' : ''}" data-item-id="${normalizedItemId}" title="Select item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
@@ -1256,14 +1300,14 @@ function renderMenu() {
                         </div>
                         ${priceHTML}
                     </div>
-                    <button class="add-to-cart" data-item-id="${item.id}">Add to Cart</button>
+                    <button class="add-to-cart" data-item-id="${normalizedItemId}">Add to Cart</button>
                 </div>
             `;
         } else {
             // MULTI SELECT UI - Add checkbox to top-right corner
-            const isSelected = selectedItems[item.id] || false;
+            const isSelected = selectedItems[normalizedItemId] || false;
             menuItemCard.innerHTML = `
-                <div class="menu-item-select-toggle ${isSelected ? 'selected' : ''} ${isInCart ? 'in-cart' : ''}" data-item-id="${item.id}" title="Select item">
+                <div class="menu-item-select-toggle ${isSelected ? 'selected' : ''} ${isInCart ? 'in-cart' : ''}" data-item-id="${normalizedItemId}" title="Select item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
@@ -1273,12 +1317,12 @@ function renderMenu() {
                 ${categoryDisplay}
                 ${sizeSelectorHTML}
                 ${priceHTML}
-                <button class="add-to-cart" data-item-id="${item.id}">Add to Cart</button>
+                <button class="add-to-cart" data-item-id="${normalizedItemId}">Add to Cart</button>
             `;
         }
         
         // MULTI SELECT UI - Add selected class if item is selected
-        if (selectedItems[item.id]) {
+        if (selectedItems[normalizedItemId]) {
             menuItemCard.classList.add('menu-item-selected');
         }
         
@@ -1297,11 +1341,11 @@ function renderMenu() {
             e.stopPropagation(); // Prevent any parent click handlers
             const button = e.currentTarget || this;
             const itemIdAttr = button.getAttribute('data-item-id');
-            const itemId = parseInt(itemIdAttr);
+            const itemId = itemIdAttr ? String(itemIdAttr) : '';
             
             console.log('🛒 Add to Cart clicked - Item ID:', itemId, 'Button:', button);
             
-            if (itemId && !isNaN(itemId)) {
+            if (itemId) {
                 addToCart(itemId);
             } else {
                 console.error('❌ Invalid item ID from button:', itemIdAttr, button);
@@ -1326,7 +1370,7 @@ function renderMenu() {
     document.querySelectorAll('.menu-item-select-toggle').forEach(toggle => {
         toggle.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent card click
-            const itemId = parseInt(toggle.getAttribute('data-item-id'));
+            const itemId = String(toggle.getAttribute('data-item-id'));
             toggleItemSelection(itemId);
         });
     });
@@ -1343,10 +1387,11 @@ function renderMenu() {
 
 // Add item to cart
 function addToCart(itemId) {
-    console.log('🛒 addToCart called with itemId:', itemId, 'Type:', typeof itemId);
-    const item = menuItems.find(i => i.id === itemId);
+    const normalizedId = String(itemId);
+    console.log('🛒 addToCart called with itemId:', normalizedId, 'Type:', typeof normalizedId);
+    const item = menuItems.find(i => String(i.id) === normalizedId);
     if (!item) {
-        console.error('❌ Item not found:', itemId, 'Available items:', menuItems.map(i => ({ id: i.id, name: i.name })));
+        console.error('❌ Item not found:', normalizedId, 'Available items:', menuItems.map(i => ({ id: i.id, name: i.name })));
         return;
     }
     console.log('✅ Item found:', item.name);
@@ -1358,7 +1403,7 @@ function addToCart(itemId) {
     }
     
     let cartItem = {
-        id: itemId,
+        id: normalizedId,
         name: item.name,
         price: item.price || 0,
         size: null,
@@ -1393,7 +1438,7 @@ function addToCart(itemId) {
     
     // Check if item already exists in cart
     const existingIndex = cart.findIndex(ci => 
-        ci.id === itemId && 
+        String(ci.id) === normalizedId && 
         (!item.hasSizes || ci.size === cartItem.size)
     );
     
@@ -1413,19 +1458,20 @@ function addToCart(itemId) {
     
     // Clear selection if this item was selected via toggle
     // This allows user to select another item after adding to cart
-    if (selectedItems[itemId]) {
-        delete selectedItems[itemId];
+    if (selectedItems[normalizedId]) {
+        delete selectedItems[normalizedId];
         // Remove UI highlights
-        const menuItem = document.querySelector(`.menu-item[data-item-id="${itemId}"]`);
+        const menuItem = document.querySelector(`.menu-item[data-item-id="${normalizedId}"]`);
         if (menuItem) menuItem.classList.remove('menu-item-selected');
-        const toggle = document.querySelector(`.menu-item-select-toggle[data-item-id="${itemId}"]`);
+        const toggle = document.querySelector(`.menu-item-select-toggle[data-item-id="${normalizedId}"]`);
         if (toggle) toggle.classList.remove('selected');
     }
 }
 
 // Remove item from cart
 function removeFromCart(itemId, size = null) {
-    cart = cart.filter(item => !(item.id === itemId && (!item.size || item.size === size)));
+    const normalizedId = String(itemId);
+    cart = cart.filter(item => !(String(item.id) === normalizedId && (!item.size || item.size === size)));
     saveCart();
     renderCart();
     updateCartCountBadge();
@@ -1435,15 +1481,16 @@ function removeFromCart(itemId, size = null) {
 
 // Update quantity
 function updateQuantity(itemId, size, change) {
+    const normalizedId = String(itemId);
     const item = cart.find(ci => 
-        ci.id === itemId && 
+        String(ci.id) === normalizedId && 
         (!ci.size || ci.size === size)
     );
     
     if (item) {
         item.quantity += change;
         if (item.quantity <= 0) {
-            removeFromCart(itemId, size);
+            removeFromCart(normalizedId, size);
         } else {
             saveCart();
             renderCart();
@@ -1466,7 +1513,7 @@ function updateMenuHighlights() {
     
     // Add highlights for items currently in cart
     cart.forEach(cartItem => {
-        const itemId = cartItem.id;
+        const itemId = String(cartItem.id);
         const toggle = document.querySelector(`.menu-item-select-toggle[data-item-id="${itemId}"]`);
         const menuItem = document.querySelector(`.menu-item[data-item-id="${itemId}"]`);
         
@@ -1514,18 +1561,33 @@ function renderCart() {
         
         const cartItem = document.createElement('div');
         cartItem.className = 'cart-item';
+        const safeItemId = String(item.id);
+        const rawSize = item.size || '';
+        const encodedSizeAttr = rawSize.replace(/"/g, '&quot;');
         cartItem.innerHTML = `
             <div class="cart-item-details">
                 <div class="cart-item-name">${item.name}</div>
                 <div class="cart-item-price">₹${price} × ${quantity} = ₹${itemTotal.toFixed(2)}</div>
             </div>
             <div class="quantity-controls">
-                <button class="quantity-btn" onclick="updateQuantity(${item.id}, '${item.size || ''}', -1)">-</button>
+                <button class="quantity-btn" data-action="decrement" data-item-id="${safeItemId}" data-size="${encodedSizeAttr}">-</button>
                 <span class="quantity">${item.quantity}</span>
-                <button class="quantity-btn" onclick="updateQuantity(${item.id}, '${item.size || ''}', 1)">+</button>
-                <button class="quantity-btn" style="background: var(--danger); margin-left: 10px;" onclick="removeFromCart(${item.id}, '${item.size || ''}')">×</button>
+                <button class="quantity-btn" data-action="increment" data-item-id="${safeItemId}" data-size="${encodedSizeAttr}">+</button>
+                <button class="quantity-btn" data-action="remove" data-item-id="${safeItemId}" data-size="${encodedSizeAttr}" style="background: var(--danger); margin-left: 10px;">×</button>
             </div>
         `;
+        const decrementBtn = cartItem.querySelector('[data-action="decrement"]');
+        const incrementBtn = cartItem.querySelector('[data-action="increment"]');
+        const removeBtn = cartItem.querySelector('[data-action="remove"]');
+        if (decrementBtn) {
+            decrementBtn.addEventListener('click', () => updateQuantity(safeItemId, rawSize, -1));
+        }
+        if (incrementBtn) {
+            incrementBtn.addEventListener('click', () => updateQuantity(safeItemId, rawSize, 1));
+        }
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => removeFromCart(safeItemId, rawSize));
+        }
         cartItems.appendChild(cartItem);
     });
     
@@ -1553,10 +1615,10 @@ function updateCartCountBadge() {
 // MULTI SELECT UI - Toggle item selection (SINGLE SELECT MODE ONLY)
 // IMPORTANT: Only ONE item can be selected at a time. This function ONLY updates UI state.
 function toggleItemSelection(itemId) {
-    itemId = parseInt(itemId);
+    const normalizedId = String(itemId);
     
     // Check if this item is already selected
-    const isCurrentlySelected = selectedItems[itemId];
+    const isCurrentlySelected = !!selectedItems[normalizedId];
     
     // If trying to select a new item while another is already selected
     if (!isCurrentlySelected && Object.keys(selectedItems).length > 0) {
@@ -1567,11 +1629,11 @@ function toggleItemSelection(itemId) {
     
     // Toggle selection state (UI only, does not affect cart)
     if (isCurrentlySelected) {
-        delete selectedItems[itemId];
+        delete selectedItems[normalizedId];
     } else {
         // Clear any existing selection (single select mode)
         selectedItems = {};
-        selectedItems[itemId] = true;
+        selectedItems[normalizedId] = true;
         
         // Remove highlights from all other items
         document.querySelectorAll('.menu-item-selected').forEach(item => {
@@ -1583,10 +1645,10 @@ function toggleItemSelection(itemId) {
     }
     
     // Update UI highlights only
-    const menuItem = document.querySelector(`.menu-item[data-item-id="${itemId}"]`);
-    const toggle = document.querySelector(`.menu-item-select-toggle[data-item-id="${itemId}"]`);
+    const menuItem = document.querySelector(`.menu-item[data-item-id="${normalizedId}"]`);
+    const toggle = document.querySelector(`.menu-item-select-toggle[data-item-id="${normalizedId}"]`);
     
-    if (selectedItems[itemId]) {
+    if (selectedItems[normalizedId]) {
         if (menuItem) menuItem.classList.add('menu-item-selected');
         if (toggle) toggle.classList.add('selected');
     } else {
@@ -1601,7 +1663,7 @@ function toggleItemSelection(itemId) {
 // MULTI SELECT UI - Add selected item to cart (SINGLE SELECT MODE)
 // IMPORTANT: This is the ONLY function that should add items to cart and show success popup
 function addSelectedToCart() {
-    const selectedIds = Object.keys(selectedItems).map(id => parseInt(id));
+    const selectedIds = Object.keys(selectedItems);
     
     if (selectedIds.length === 0) {
         return;
@@ -1617,7 +1679,7 @@ function addSelectedToCart() {
         // Call existing addToCart function - NO MODIFICATIONS
         // Note: addToCart may show error popup if size is required but not selected
         // We'll track these errors and show a summary at the end
-        const item = menuItems.find(i => i.id === itemId);
+        const item = menuItems.find(i => String(i.id) === itemId);
         if (item && item.hasSizes && item.sizes) {
             const selectedSizeTile = document.querySelector(`.size-tile.active[data-item-id="${itemId}"]`);
             if (!selectedSizeTile) {

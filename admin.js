@@ -49,6 +49,23 @@ let exportSectionsState = {
 };
 let gstSectionOpen = false;
 
+function getHotelIdentifierForAuth() {
+    if (branchRouter && typeof branchRouter.getHotelKey === 'function') {
+        const key = branchRouter.getHotelKey();
+        if (key) {
+            return key;
+        }
+    }
+    if (selectedHotelId) {
+        return selectedHotelId;
+    }
+    const storedHotelId = sessionStorage.getItem('selectedHotelId');
+    if (storedHotelId) {
+        return storedHotelId;
+    }
+    return null;
+}
+
 // Toggle export section
 function toggleExportSection(section) {
     exportSectionsState[section] = !exportSectionsState[section];
@@ -165,6 +182,8 @@ async function loadRestaurantTitle() {
                 if (titleElement) {
                     titleElement.textContent = restaurantTitle;
                 }
+                // Update page title
+                document.title = `${restaurantTitle} - Admin Panel`;
             }
         }
         
@@ -193,7 +212,41 @@ function updateBannerTheme() {
     }
 }
 
+// Setup collapsible sections with chevron icons
+function setupCollapsibleSections() {
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+        const targetIds = header.getAttribute('data-target');
+        if (!targetIds) return;
+        
+        const targets = targetIds.split(',').map(id => id.trim()).map(id => document.getElementById(id)).filter(el => el !== null);
+        if (targets.length === 0) return;
+        
+        header.addEventListener('click', () => {
+            const isExpanded = header.getAttribute('aria-expanded') === 'true';
+            targets.forEach(target => {
+                if (isExpanded) {
+                    target.style.display = 'none';
+                } else {
+                    target.style.display = '';
+                }
+            });
+            header.setAttribute('aria-expanded', !isExpanded);
+        });
+        
+        // Set initial state based on current display
+        const isInitiallyExpanded = targets.some(t => {
+            const style = t.style.display;
+            const computed = window.getComputedStyle(t).display;
+            return style !== 'none' && computed !== 'none';
+        });
+        header.setAttribute('aria-expanded', isInitiallyExpanded);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // Setup collapsible sections first
+    setupCollapsibleSections();
+    
     // Initialize ThemeManager first (loads theme from Supabase)
     if (typeof ThemeManager !== 'undefined') {
         await ThemeManager.init();
@@ -409,6 +462,7 @@ function renderGstSettingsForm() {
     if (showTaxToggle) {
         showTaxToggle.checked = gstSettings.showTaxOnBill !== false;
     }
+    setupGstSettingsForm();
 }
 
 function setupGstSettingsForm() {
@@ -651,16 +705,43 @@ function setupPasswordAuth() {
             passwordInput.focus();
             return;
         }
-        
-        // Validate: ADMIN_PASSWORD must be loaded
-        if (!ADMIN_PASSWORD || ADMIN_PASSWORD.trim() === '') {
-            errorMessage.textContent = 'Password not configured. Please check Config sheet.';
-            passwordInput.focus();
+
+        const hotelIdentifier = getHotelIdentifierForAuth();
+        if (!hotelIdentifier) {
+            errorMessage.textContent = 'Unable to determine hotel context. Please open the admin panel via a hotel-specific URL.';
             return;
         }
         
-        // Check password match
-        if (enteredPassword === ADMIN_PASSWORD.trim()) {
+        const canVerifyViaSupabase = supabaseApi && typeof supabaseApi.verifyHotelAdminPassword === 'function';
+        let isPasswordValid = false;
+        const originalButtonText = loginBtn.textContent;
+        if (canVerifyViaSupabase) {
+            try {
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Verifying...';
+                const isValid = await supabaseApi.verifyHotelAdminPassword({
+                    hotelIdentifier,
+                    password: enteredPassword
+                });
+                isPasswordValid = isValid === true;
+            } catch (verifyError) {
+                console.error('❌ Failed to verify hotel admin password:', verifyError);
+                errorMessage.textContent = 'Unable to verify password right now. Please try again.';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = originalButtonText;
+            }
+        } else {
+            // Fallback to legacy config-based password
+            if (!ADMIN_PASSWORD || ADMIN_PASSWORD.trim() === '') {
+                errorMessage.textContent = 'Password not configured. Please check Config sheet.';
+                passwordInput.focus();
+                return;
+            }
+            isPasswordValid = enteredPassword === ADMIN_PASSWORD.trim();
+        }
+        
+        if (isPasswordValid) {
             // Set authentication (persists across branch changes and page refreshes)
             sessionStorage.setItem('adminAuthenticated', 'true');
             console.log('✅ Login successful - hiding modal and showing admin panel');
@@ -1241,6 +1322,8 @@ function renderMenuItems() {
         }
         const itemCard = document.createElement('div');
         itemCard.className = 'menu-item-admin';
+        const normalizedItemId = String(item.id);
+        const normalizedBranchId = String(item.branchId || item.branch_id || '');
         
         let priceDisplay = '';
         if (item.hasSizes && item.sizes && typeof item.sizes === 'object') {
@@ -1280,7 +1363,7 @@ function renderMenuItems() {
             priceDisplay = `<p>Price: ₹${price}</p>`;
         }
         
-        const branchName = allBranches.find(b => b.id == item.branchId)?.name || `Branch ${item.branchId}`;
+        const branchName = allBranches.find(b => String(b.id) == normalizedBranchId)?.name || `Branch ${normalizedBranchId}`;
         const imageUrl = getImageUrl(item.image);
         
         // Separate rendering for Grid View and List View
@@ -1307,8 +1390,8 @@ function renderMenuItems() {
                             <div class="text-sm mt-2">${priceDisplay}</div>
                         </div>
                         <div class="flex flex-col gap-2">
-                            <button class="btn btn-primary-compact-card" onclick="editItem(${item.id}, '${item.branchId}')">Edit</button>
-                            <button class="btn btn-danger-compact-card" onclick="deleteItem(${item.id}, '${item.branchId}')">Delete</button>
+                            <button class="btn btn-primary-compact-card" data-role="edit-item" data-item-id="${normalizedItemId}" data-branch-id="${normalizedBranchId}">Edit</button>
+                            <button class="btn btn-danger-compact-card" data-role="delete-item" data-item-id="${normalizedItemId}" data-branch-id="${normalizedBranchId}">Delete</button>
                         </div>
                     </div>
                 </div>
@@ -1323,13 +1406,21 @@ function renderMenuItems() {
                         <div class="mt-2 text-sm">${priceDisplay}</div>
                     </div>
                     <div class="actions flex flex-col gap-2 shrink-0">
-                        <button class="btn btn-primary-compact-card" onclick="editItem(${item.id}, '${item.branchId}')">Edit</button>
-                        <button class="btn btn-danger-compact-card" onclick="deleteItem(${item.id}, '${item.branchId}')">Delete</button>
+                        <button class="btn btn-primary-compact-card" data-role="edit-item" data-item-id="${normalizedItemId}" data-branch-id="${normalizedBranchId}">Edit</button>
+                        <button class="btn btn-danger-compact-card" data-role="delete-item" data-item-id="${normalizedItemId}" data-branch-id="${normalizedBranchId}">Delete</button>
                     </div>
                 </div>
             `;
         }
         
+        const editBtn = itemCard.querySelector('[data-role="edit-item"]');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => editItem(normalizedItemId, normalizedBranchId));
+        }
+        const deleteBtn = itemCard.querySelector('[data-role="delete-item"]');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => deleteItem(normalizedItemId, normalizedBranchId));
+        }
         menuItemsAdmin.appendChild(itemCard);
     });
 }
@@ -2883,7 +2974,12 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
 
 // Edit item
 function editItem(id, branchId) {
-    const item = menuItems.find(i => i.id == id && i.branchId == branchId);
+    const normalizedId = String(id);
+    const normalizedBranchId = String(branchId);
+    const item = menuItems.find(i => 
+        String(i.id) == normalizedId && 
+        String(i.branchId || i.branch_id) == normalizedBranchId
+    );
     if (item) {
         openItemModal(item);
     }
@@ -2891,6 +2987,8 @@ function editItem(id, branchId) {
 
 // Delete item
 async function deleteItem(id, branchId) {
+    const normalizedId = String(id);
+    const normalizedBranchId = String(branchId);
     // Show confirmation popup
     showAdminPopup('info', 'Confirm Delete', 'Are you sure you want to delete this item?', [
         {
@@ -2905,7 +3003,7 @@ async function deleteItem(id, branchId) {
                 try {
                     showAdminLoader('Deleting item...');
                     // Delete from Google Sheets
-                    await apiService.deleteMenuItem(id, branchId);
+                    await apiService.deleteMenuItem(normalizedId, normalizedBranchId);
                     hideAdminLoader();
                     
                     // Show success popup
@@ -2931,7 +3029,7 @@ async function deleteItem(id, branchId) {
                     console.error('Error deleting from Google Sheets:', error);
                     hideAdminLoader();
                     // Fallback to localStorage
-                    menuItems = menuItems.filter(item => !(item.id == id && item.branchId == branchId));
+                    menuItems = menuItems.filter(item => !(String(item.id) == normalizedId && String(item.branchId || item.branch_id) == normalizedBranchId));
                     await saveMenu();
                     showAdminPopup('info', 'Deleted Locally', 'Item deleted locally (will sync when online)!', [
                         {

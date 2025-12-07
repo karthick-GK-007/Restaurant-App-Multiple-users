@@ -1,0 +1,10 @@
+// DO NOT commit real Supabase secrets. Copy this file to supabase-config.js
+// and fill in project-specific details. The HTML pages will load this file
+// before supabase-service.js at deploy/runtime.
+
+window.SUPABASE_CONFIG = {
+    url: '<SUPABASE_URL>',
+    anonKey: '<SUPABASE_ANON_KEY>',
+    serviceRoleKey: '<SUPABASE_SERVICE_ROLE_KEY>'
+};
+

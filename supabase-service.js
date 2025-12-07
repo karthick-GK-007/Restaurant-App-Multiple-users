@@ -359,25 +359,43 @@ class SupabaseAPI {
     }
 
     getRuntimeConfig() {
+        // Priority 1: window.SUPABASE_CONFIG (set by inline script)
         if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url && window.SUPABASE_CONFIG.anonKey) {
             return window.SUPABASE_CONFIG;
         }
+        
+        // Priority 2: window environment variables
         if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
             return { url: window.SUPABASE_URL, anonKey: window.SUPABASE_ANON_KEY };
         }
+        
+        // Priority 3: Load from localStorage (fallback)
         try {
             const stored = localStorage.getItem('supabase_config');
             if (stored) {
                 const config = JSON.parse(stored);
+                
                 // Handle both formats: {url, anonKey} and {supabaseUrl, supabaseKey}
-                if (config.supabaseUrl && config.supabaseKey) {
-                    return { url: config.supabaseUrl, anonKey: config.supabaseKey };
+                let url, anonKey;
+                if (config.url && config.anonKey) {
+                    url = config.url;
+                    anonKey = config.anonKey;
+                } else if (config.supabaseUrl && config.supabaseKey) {
+                    url = config.supabaseUrl;
+                    anonKey = config.supabaseKey;
                 }
-                return config;
+                
+                if (url && anonKey) {
+                    // Also set window.SUPABASE_CONFIG for future use
+                    window.SUPABASE_CONFIG = { url: url.trim(), anonKey: anonKey.trim() };
+                    console.log('✅ Loaded Supabase config from localStorage and set window.SUPABASE_CONFIG');
+                    return window.SUPABASE_CONFIG;
+                }
             }
         } catch (error) {
             console.warn('Failed to parse stored Supabase config', error);
         }
+        
         return null;
     }
 

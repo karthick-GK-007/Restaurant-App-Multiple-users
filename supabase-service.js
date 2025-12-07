@@ -872,15 +872,46 @@ class SupabaseAPI {
             throw new Error('Hotel identifier and password are required for verification');
         }
         const client = await this.ensureClient();
-        const { data, error } = await client.rpc('verify_hotel_admin_password', {
-            p_hotel_identifier: trimmedIdentifier,
-            p_password: trimmedPassword
-        });
-        if (error) {
-            console.error('❌ Supabase verify_hotel_admin_password error:', error);
-            throw error;
+        
+        // Try multiple identifier formats to match the database
+        // The database function matches: hotel_id, slug, name, or REPLACE(name, ' ', '-')
+        const identifiersToTry = [
+            trimmedIdentifier,                    // Original: "suganya-hotel"
+            trimmedIdentifier.replace(/-hotel$/, ''), // Remove "-hotel": "suganya"
+            trimmedIdentifier.replace(/-hotel$/i, ''), // Case-insensitive: "suganya"
+        ];
+        
+        // Remove duplicates
+        const uniqueIdentifiers = [...new Set(identifiersToTry)];
+        
+        console.log('🔍 Trying hotel identifiers:', uniqueIdentifiers);
+        
+        // Try each identifier format
+        for (const identifier of uniqueIdentifiers) {
+            try {
+                const { data, error } = await client.rpc('verify_hotel_admin_password', {
+                    p_hotel_identifier: identifier,
+                    p_password: trimmedPassword
+                });
+                
+                if (error) {
+                    console.warn(`⚠️ Verification failed for "${identifier}":`, error.message);
+                    continue; // Try next identifier
+                }
+                
+                if (data === true) {
+                    console.log(`✅ Password verified successfully with identifier: "${identifier}"`);
+                    return true;
+                }
+            } catch (err) {
+                console.warn(`⚠️ Error verifying with "${identifier}":`, err.message);
+                continue; // Try next identifier
+            }
         }
-        return data === true;
+        
+        // If all attempts failed
+        console.error('❌ Password verification failed for all identifier formats');
+        return false;
     }
 
     parseDecimal(value) {

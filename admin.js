@@ -50,19 +50,27 @@ let exportSectionsState = {
 let gstSectionOpen = false;
 
 function getHotelIdentifierForAuth() {
-    if (branchRouter && typeof branchRouter.getHotelKey === 'function') {
-        const key = branchRouter.getHotelKey();
-        if (key) {
-            return key;
-        }
-    }
+    // Priority 1: Use actual hotel ID if available (most reliable)
     if (selectedHotelId) {
+        console.log('🔍 Using selectedHotelId:', selectedHotelId);
         return selectedHotelId;
     }
     const storedHotelId = sessionStorage.getItem('selectedHotelId');
     if (storedHotelId) {
+        console.log('🔍 Using stored hotel ID:', storedHotelId);
         return storedHotelId;
     }
+    
+    // Priority 2: Use hotel key from URL (will try multiple formats in verification)
+    if (branchRouter && typeof branchRouter.getHotelKey === 'function') {
+        const key = branchRouter.getHotelKey();
+        if (key) {
+            console.log('🔍 Using hotel key from URL:', key);
+            return key;
+        }
+    }
+    
+    console.warn('⚠️ No hotel identifier found');
     return null;
 }
 

@@ -12,14 +12,38 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script>
-        // Redirect kagzso paths to hash-based routing for static hosting
+        // Handle kagzso paths - convert to hash-based routing for client-side navigation
         (function() {
             const pathname = window.location.pathname;
-            if (pathname.includes('/kagzso/user/')) {
-                // Redirect to index.html with hash
+            const hash = window.location.hash;
+            
+            // If we're already on index.html with the correct hash, we're good
+            if (pathname === '/index.html' && hash.startsWith('#/kagzso/user/')) {
+                return; // Already on correct page
+            }
+            
+            // If Vercel rewrote /kagzso/user/... to /index.html, add hash for client-side routing
+            if (pathname === '/index.html' && !hash) {
+                // Check referrer or reconstruct from current URL
+                const fullPath = window.location.pathname + window.location.search;
+                if (fullPath.includes('kagzso')) {
+                    const match = fullPath.match(/\/kagzso\/(admin|user)\/([^\/]+)(?:\/([^\/]+))?/);
+                    if (match) {
+                        const [, type, hotel, branch] = match;
+                        const hashPath = branch 
+                            ? `#/kagzso/${type}/${hotel}/${branch}`
+                            : `#/kagzso/${type}/${hotel}`;
+                        const targetPage = type === 'admin' ? '/admin.html' : '/index.html';
+                        window.location.replace(targetPage + hashPath);
+                        return;
+                    }
+                }
+            }
+            
+            // Fallback: if we're on a kagzso path directly (shouldn't happen with Vercel)
+            if (pathname.startsWith('/kagzso/user/')) {
                 window.location.replace('/index.html#' + pathname);
-            } else if (pathname.includes('/kagzso/admin/')) {
-                // Redirect to admin.html with hash
+            } else if (pathname.startsWith('/kagzso/admin/')) {
                 window.location.replace('/admin.html#' + pathname);
             }
         })();

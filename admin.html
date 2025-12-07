@@ -13,30 +13,41 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/admin.css">
     <script>
-        // Redirect kagzso paths to hash-based routing for static hosting
-        // Only redirect if we're not already on the correct page
+        // Handle kagzso paths - convert to hash-based routing for client-side navigation
         (function() {
             const pathname = window.location.pathname;
             const hash = window.location.hash;
             
-            // If we're already on admin.html with the correct hash, don't redirect
+            // If we're already on admin.html with the correct hash, we're good
             if (pathname === '/admin.html' && hash.startsWith('#/kagzso/admin/')) {
                 return; // Already on correct page
             }
             
-            // If we're on a kagzso admin path served by the server, don't redirect
-            // The server serves admin.html for /kagzso/admin/ paths
-            if (pathname.startsWith('/kagzso/admin/')) {
-                return; // Server is already serving admin.html, no redirect needed
+            // If Vercel rewrote /kagzso/admin/... to /admin.html, add hash for client-side routing
+            if (pathname === '/admin.html' && !hash) {
+                // Check if we came from a kagzso path (Vercel rewrite)
+                // The original path should be in the referrer or we can reconstruct it
+                // For now, let the client-side router handle it from the URL
+                const fullPath = window.location.pathname + window.location.search;
+                if (fullPath.includes('kagzso')) {
+                    // Extract the kagzso path and convert to hash
+                    const match = fullPath.match(/\/kagzso\/(admin|user)\/([^\/]+)(?:\/([^\/]+))?/);
+                    if (match) {
+                        const [, type, hotel, branch] = match;
+                        const hashPath = branch 
+                            ? `#/kagzso/${type}/${hotel}/${branch}`
+                            : `#/kagzso/${type}/${hotel}`;
+                        window.location.replace('/admin.html' + hashPath);
+                        return;
+                    }
+                }
             }
             
-            // Only redirect if we're on a different path
-            if (pathname.includes('/kagzso/user/')) {
-                // Redirect to index.html with hash
-                window.location.replace('/index.html#' + pathname);
-            } else if (pathname.includes('/kagzso/admin/')) {
-                // This shouldn't happen if server is working, but handle it anyway
+            // If we're on a kagzso path (shouldn't happen with Vercel rewrites, but fallback)
+            if (pathname.startsWith('/kagzso/admin/')) {
                 window.location.replace('/admin.html#' + pathname);
+            } else if (pathname.startsWith('/kagzso/user/')) {
+                window.location.replace('/index.html#' + pathname);
             }
         })();
     </script>

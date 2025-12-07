@@ -403,16 +403,30 @@ class SupabaseAPI {
         if (this.supabaseClient) {
             return this.supabaseClient;
         }
-        const cfg = this.getRuntimeConfig();
+        
+        // Try to get config - this will also load from localStorage if window.SUPABASE_CONFIG is not set
+        let cfg = this.getRuntimeConfig();
+        
+        // If config is still missing, wait a bit and try again (in case localStorage is being read)
         if (!cfg || !cfg.url || !cfg.anonKey) {
-            console.warn('Supabase config missing. Provide window.SUPABASE_CONFIG before loading supabase-service.js');
+            console.warn('⚠️ Supabase config not found, waiting 100ms and retrying...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            cfg = this.getRuntimeConfig();
+        }
+        
+        if (!cfg || !cfg.url || !cfg.anonKey) {
+            console.error('❌ Supabase config missing after retry. Config:', cfg);
+            console.error('❌ window.SUPABASE_CONFIG:', window.SUPABASE_CONFIG);
+            console.error('❌ localStorage supabase_config:', localStorage.getItem('supabase_config'));
             this.configLoaded = false;
             return null;
         }
+        
         this.supabaseUrl = cfg.url;
         this.supabaseKey = cfg.anonKey;
         this.supabaseClient = window.supabase.createClient(this.supabaseUrl, this.supabaseKey);
         this.configLoaded = true;
+        console.log('✅ Supabase client initialized successfully');
         return this.supabaseClient;
     }
 

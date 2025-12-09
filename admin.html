@@ -429,15 +429,16 @@
             if (!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || !window.SUPABASE_CONFIG.anonKey) {
                 console.error('❌ window.SUPABASE_CONFIG not properly set!', window.SUPABASE_CONFIG);
                 console.error('❌ This usually means:');
-                console.error('   1. In production: Vercel env vars not set (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)');
+                console.error('   1. In production: Vercel env vars not injected (check build logs) or not set in Vercel dashboard');
                 console.error('   2. In local dev: Visit /supabase-config.html to configure');
                 
-                // Only redirect in local development (when Vercel env vars are not available)
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    console.warn('⚠️ Local development detected. Redirecting to Supabase config page...');
-                    setTimeout(() => {
-                        window.location.href = '/supabase-config.html';
-                    }, 2000);
+                // Only show a helpful message, don't redirect automatically
+                // The app will show errors when trying to use Supabase, which is better UX
+                const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                if (isLocalDev) {
+                    console.warn('⚠️ Local development detected. For local dev, visit /supabase-config.html to configure Supabase.');
+                } else {
+                    console.warn('⚠️ Production: Supabase config missing. Check Vercel environment variables and build logs.');
                 }
             } else {
                 console.log('✅ Verified: window.SUPABASE_CONFIG is ready');

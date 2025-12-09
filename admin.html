@@ -414,6 +414,14 @@
             // Verify it's set
             if (!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || !window.SUPABASE_CONFIG.anonKey) {
                 console.error('❌ window.SUPABASE_CONFIG not properly set!', window.SUPABASE_CONFIG);
+                console.error('❌ localStorage value:', localStorage.getItem('supabase_config'));
+                // If config is missing, redirect to config page
+                if (window.location.pathname.includes('admin.html')) {
+                    console.warn('⚠️ Redirecting to Supabase config page...');
+                    setTimeout(() => {
+                        window.location.href = '/supabase-config.html';
+                    }, 2000);
+                }
             } else {
                 console.log('✅ Verified: window.SUPABASE_CONFIG is ready');
             }

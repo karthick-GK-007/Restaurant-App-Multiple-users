@@ -193,26 +193,63 @@
         // Load Supabase config from localStorage synchronously
         (function() {
             'use strict';
-            try {
-                const stored = localStorage.getItem('supabase_config');
-                if (stored) {
-                    const config = JSON.parse(stored);
-                    let url, anonKey;
-                    if (config.url && config.anonKey) {
-                        url = config.url;
-                        anonKey = config.anonKey;
-                    } else if (config.supabaseUrl && config.supabaseKey) {
-                        url = config.supabaseUrl;
-                        anonKey = config.supabaseKey;
+            
+            function loadAndSetConfig() {
+                try {
+                    const stored = localStorage.getItem('supabase_config');
+                    console.log('🔍 Loading config from localStorage:', stored ? 'Found' : 'Not found');
+                    
+                    if (stored) {
+                        const config = JSON.parse(stored);
+                        console.log('🔍 Parsed config keys:', Object.keys(config));
+                        
+                        // Extract URL and key from any format
+                        const url = (config.url || config.supabaseUrl || '').trim();
+                        const anonKey = (config.anonKey || config.supabaseKey || '').trim();
+                        
+                        console.log('🔍 Extracted values:', { hasUrl: !!url, hasAnonKey: !!anonKey });
+                        
+                        if (url && anonKey) {
+                            // Set window.SUPABASE_CONFIG immediately
+                            window.SUPABASE_CONFIG = { 
+                                url: url, 
+                                anonKey: anonKey
+                            };
+                            console.log('✅ window.SUPABASE_CONFIG set:', { 
+                                url: url.substring(0, 30) + '...', 
+                                hasAnonKey: true 
+                            });
+                            return true;
+                        } else {
+                            console.error('❌ Config missing url or anonKey:', { 
+                                hasUrl: !!url, 
+                                hasAnonKey: !!anonKey,
+                                configKeys: Object.keys(config),
+                                config: config
+                            });
+                        }
+                    } else {
+                        console.warn('⚠️ No supabase_config in localStorage. Visit /supabase-config.html to configure.');
                     }
-                    if (url && anonKey) {
-                        window.SUPABASE_CONFIG = { url: url, anonKey: anonKey };
-                        console.log('✅ Supabase config loaded from localStorage');
-                    }
+                } catch (error) {
+                    console.error('❌ Failed to load Supabase config:', error);
                 }
-            } catch (error) {
-                console.error('❌ Failed to load Supabase config:', error);
+                return false;
             }
+            
+            // Load config immediately
+            const success = loadAndSetConfig();
+            
+            // Verify it's set
+            if (!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || !window.SUPABASE_CONFIG.anonKey) {
+                console.error('❌ window.SUPABASE_CONFIG not properly set after load!', window.SUPABASE_CONFIG);
+                console.error('❌ This will cause Supabase client initialization to fail!');
+            } else {
+                console.log('✅ Verified: window.SUPABASE_CONFIG is ready for supabase-service.js');
+            }
+            
+            // Expose reload function
+            window.reloadSupabaseConfig = loadAndSetConfig;
         })();
     </script>
     <script src="supabase-config.js?v=local"></script>

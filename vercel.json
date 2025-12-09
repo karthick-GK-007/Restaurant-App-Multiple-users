@@ -1,4 +1,5 @@
 {
+  "buildCommand": "node build.js",
   "rewrites": [
     {
       "source": "/kagzso/admin/:hotel/:branch*",

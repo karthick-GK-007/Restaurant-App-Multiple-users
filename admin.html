@@ -365,12 +365,26 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Runtime Supabase credentials - MUST load before supabase-service.js -->
     <script>
-        // Load Supabase config from localStorage synchronously - MUST run before supabase-service.js
-        // This ensures window.SUPABASE_CONFIG is set immediately and always available
+        // Supabase Configuration Loader
+        // Priority: 1) Vercel env vars (injected at build time), 2) localStorage (local dev fallback)
+        // MUST run before supabase-service.js to ensure window.SUPABASE_CONFIG is set immediately
         (function loadSupabaseConfig() {
             'use strict';
             
-            function setConfig() {
+            // Priority 1: Check for build-time injected Vercel environment variables
+            // These are injected by build.js during Vercel deployment
+            // PLACEHOLDER_FOR_BUILD_SCRIPT - will be replaced by build.js
+            if (typeof window.__VERCEL_SUPABASE_URL__ !== 'undefined' && typeof window.__VERCEL_SUPABASE_ANON_KEY__ !== 'undefined') {
+                window.SUPABASE_CONFIG = {
+                    url: window.__VERCEL_SUPABASE_URL__,
+                    anonKey: window.__VERCEL_SUPABASE_ANON_KEY__
+                };
+                console.log('✅ window.SUPABASE_CONFIG set from Vercel environment variables (production)');
+                return;
+            }
+            
+            // Priority 2: Fallback to localStorage (for local development)
+            function loadFromLocalStorage() {
                 try {
                     const stored = localStorage.getItem('supabase_config');
                     
@@ -387,7 +401,7 @@
                                 url: url, 
                                 anonKey: anonKey
                             };
-                            console.log('✅ window.SUPABASE_CONFIG set from localStorage');
+                            console.log('✅ window.SUPABASE_CONFIG set from localStorage (local dev)');
                             return true;
                         } else {
                             console.error('❌ Config missing url or anonKey:', { 
@@ -397,27 +411,30 @@
                             });
                         }
                     } else {
-                        console.warn('⚠️ No supabase_config in localStorage. Visit /supabase-config.html to configure.');
+                        console.warn('⚠️ No supabase_config in localStorage. For local development, visit /supabase-config.html to configure.');
                     }
                 } catch (error) {
-                    console.error('❌ Failed to load Supabase config:', error);
+                    console.error('❌ Failed to load Supabase config from localStorage:', error);
                 }
                 return false;
             }
             
-            // Load config immediately
-            setConfig();
+            // Try loading from localStorage
+            const loaded = loadFromLocalStorage();
             
-            // Also expose a function to reload config if needed
-            window.reloadSupabaseConfig = setConfig;
+            // Expose reload function for manual config refresh
+            window.reloadSupabaseConfig = loadFromLocalStorage;
             
             // Verify it's set
             if (!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || !window.SUPABASE_CONFIG.anonKey) {
                 console.error('❌ window.SUPABASE_CONFIG not properly set!', window.SUPABASE_CONFIG);
-                console.error('❌ localStorage value:', localStorage.getItem('supabase_config'));
-                // If config is missing, redirect to config page
-                if (window.location.pathname.includes('admin.html')) {
-                    console.warn('⚠️ Redirecting to Supabase config page...');
+                console.error('❌ This usually means:');
+                console.error('   1. In production: Vercel env vars not set (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)');
+                console.error('   2. In local dev: Visit /supabase-config.html to configure');
+                
+                // Only redirect in local development (when Vercel env vars are not available)
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    console.warn('⚠️ Local development detected. Redirecting to Supabase config page...');
                     setTimeout(() => {
                         window.location.href = '/supabase-config.html';
                     }, 2000);

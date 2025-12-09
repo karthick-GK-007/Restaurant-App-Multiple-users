@@ -359,17 +359,25 @@ class SupabaseAPI {
     }
 
     getRuntimeConfig() {
-        // Priority 1: window.SUPABASE_CONFIG (set by inline script)
+        // Priority 1: window.SUPABASE_CONFIG (set by inline script from Vercel env vars or localStorage)
+        // This is set by the inline script in admin.html/index.html which checks:
+        // 1. Build-time injected env vars (production)
+        // 2. localStorage (local development fallback)
         if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url && window.SUPABASE_CONFIG.anonKey) {
             return window.SUPABASE_CONFIG;
         }
         
-        // Priority 2: window environment variables
+        // Priority 2: Direct window environment variables (legacy support)
+        // These would be set by build-time injection if window.SUPABASE_CONFIG wasn't set
         if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-            return { url: window.SUPABASE_URL, anonKey: window.SUPABASE_ANON_KEY };
+            const config = { url: window.SUPABASE_URL, anonKey: window.SUPABASE_ANON_KEY };
+            // Cache it in window.SUPABASE_CONFIG for consistency
+            window.SUPABASE_CONFIG = config;
+            return config;
         }
         
-        // Priority 3: Load from localStorage (fallback)
+        // Priority 3: Load from localStorage (fallback for local development)
+        // This is only used when Vercel env vars are not available
         try {
             const stored = localStorage.getItem('supabase_config');
             if (stored) {
@@ -386,9 +394,9 @@ class SupabaseAPI {
                 }
                 
                 if (url && anonKey) {
-                    // Also set window.SUPABASE_CONFIG for future use
+                    // Set window.SUPABASE_CONFIG for future use
                     window.SUPABASE_CONFIG = { url: url.trim(), anonKey: anonKey.trim() };
-                    console.log('✅ Loaded Supabase config from localStorage and set window.SUPABASE_CONFIG');
+                    console.log('✅ Loaded Supabase config from localStorage (local dev fallback)');
                     return window.SUPABASE_CONFIG;
                 }
             }

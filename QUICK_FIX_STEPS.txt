@@ -1,0 +1,65 @@
+🚨 QUICK FIX FOR LOGIN ISSUES 🚨
+
+The console shows: "localStorage supabase_config: null"
+This means Supabase config is NOT saved in your browser!
+
+═══════════════════════════════════════════════════════════
+
+STEP 1: CONFIGURE SUPABASE (DO THIS FIRST!)
+═══════════════════════════════════════════════════════════
+
+1. Open this URL in your browser:
+   https://restaurant-app-multiple-users.vercel.app/supabase-config.html
+
+2. Enter your Supabase credentials:
+   - Supabase Project URL
+   - Supabase Anon Key
+
+3. Click "Save Configuration"
+
+4. Verify it worked:
+   - Press F12 (open console)
+   - Type: localStorage.getItem('supabase_config')
+   - You should see your config JSON
+
+⚠️ IMPORTANT: If using incognito mode, configure it again!
+   (Incognito has separate localStorage)
+
+═══════════════════════════════════════════════════════════
+
+STEP 2: FIX DATABASE
+═══════════════════════════════════════════════════════════
+
+1. Open Supabase Dashboard → SQL Editor
+
+2. Copy and paste the ENTIRE file: COMPLETE_FIX.sql
+
+3. Click "Run" to execute
+
+This will:
+   ✅ Fix password verification function
+   ✅ Reset all passwords
+   ✅ Test the function
+
+═══════════════════════════════════════════════════════════
+
+STEP 3: TEST LOGIN
+═══════════════════════════════════════════════════════════
+
+Default Passwords:
+   • Karthick Hotel: karthick@123
+   • Suganya Hotel: suganya@123
+   • Kagan Hotel: kagan@123
+   • Maha Hotel: maha@123
+
+Test URLs:
+   Admin: /kagzso/admin/karthick-hotel/tambaram
+   User: /kagzso/user/karthick-hotel/tambaram
+
+═══════════════════════════════════════════════════════════
+
+If still not working:
+   1. Hard refresh: Ctrl+Shift+R
+   2. Check console for errors
+   3. Make sure you're using the correct password for the hotel in the URL
+

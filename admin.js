@@ -179,21 +179,113 @@ function showAdminPopup(type, title, message, buttons = []) {
 }
 
 // Initialize admin panel
-// Load restaurant title from config
+// Load restaurant title from config with hotel name
 async function loadRestaurantTitle() {
     try {
-        if (typeof apiService !== 'undefined') {
-            await apiService.initialize();
-            const restaurantTitle = await apiService.getConfig('restaurant_title');
-            if (restaurantTitle) {
-                const titleElement = document.getElementById('restaurant-title-admin-header');
-                if (titleElement) {
-                    titleElement.textContent = restaurantTitle;
-                }
-                // Update page title
-                document.title = `${restaurantTitle} - Admin Panel`;
+        const api = supabaseApi || window.apiService;
+        if (!api) {
+            console.warn('⚠️ No API service available for loading restaurant title');
+            return;
+        }
+        
+        // Initialize API if needed
+        if (api.initialize && typeof api.initialize === 'function') {
+            try {
+                await api.initialize();
+            } catch (initError) {
+                console.warn('⚠️ API initialization error:', initError);
             }
         }
+        
+        let hotelName = '';
+        // Try to get hotel name from hotel_admin_auth_check view
+        try {
+            const client = await api.ensureClient();
+            
+            // First, try to get hotel name using selectedHotelId
+            if (selectedHotelId) {
+                const { data: hotelData } = await client
+                    .from('hotel_admin_auth_check')
+                    .select('hotel_name')
+                    .eq('hotel_id', selectedHotelId)
+                    .maybeSingle();
+                if (hotelData && hotelData.hotel_name) {
+                    hotelName = hotelData.hotel_name;
+                }
+            }
+            
+            // If no hotel name from ID, try to get from branch's hotel_id
+            if (!hotelName && allBranches.length > 0) {
+                const currentBranch = allBranches.find(b => b.id === selectedAdminBranchId) || allBranches[0];
+                const branchHotelId = currentBranch?.hotel_id || currentBranch?.hotelId;
+                if (branchHotelId) {
+                    const { data: hotelData } = await client
+                        .from('hotel_admin_auth_check')
+                        .select('hotel_name')
+                        .eq('hotel_id', branchHotelId)
+                        .maybeSingle();
+                    if (hotelData && hotelData.hotel_name) {
+                        hotelName = hotelData.hotel_name;
+                    }
+                }
+            }
+            
+            // If still no hotel name, try to get from URL or any available branch
+            if (!hotelName && allBranches.length > 0) {
+                // Try first branch's hotel_id
+                const firstBranch = allBranches[0];
+                const branchHotelId = firstBranch?.hotel_id || firstBranch?.hotelId;
+                if (branchHotelId) {
+                    const { data: hotelData } = await client
+                        .from('hotel_admin_auth_check')
+                        .select('hotel_name')
+                        .eq('hotel_id', branchHotelId)
+                        .maybeSingle();
+                    if (hotelData && hotelData.hotel_name) {
+                        hotelName = hotelData.hotel_name;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Could not fetch hotel name from hotel_admin_auth_check:', e);
+            // Fallback: try to get from branch's hotelName property
+            if (!hotelName && allBranches.length > 0) {
+                const currentBranch = allBranches.find(b => b.id === selectedAdminBranchId) || allBranches[0];
+                if (currentBranch && currentBranch.hotelName) {
+                    hotelName = currentBranch.hotelName;
+                }
+            }
+        }
+        
+        // Format title: "HotelName Restaurant Menu" or just "Restaurant Menu" if no hotel name
+        let displayTitle = 'Restaurant Menu';
+        if (hotelName) {
+            // Capitalize first letter of each word
+            const formattedHotelName = hotelName.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+            displayTitle = `${formattedHotelName} Restaurant Menu`;
+        }
+        
+        // Update the title text element
+        const titleTextElement = document.getElementById('restaurant-title-text');
+        if (titleTextElement) {
+            titleTextElement.textContent = displayTitle;
+        } else {
+            // Fallback: update the h1 element directly
+            const titleElement = document.getElementById('restaurant-title-admin-header');
+            if (titleElement) {
+                const span = titleElement.querySelector('span');
+                if (span) {
+                    span.textContent = displayTitle;
+                } else {
+                    titleElement.textContent = displayTitle;
+                }
+            }
+        }
+        
+        // Update page title
+        document.title = `${displayTitle} - Admin Panel`;
         
         // Apply theme colors to banner
         updateBannerTheme();
@@ -1456,41 +1548,7 @@ function renderMenuItems() {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Navigation buttons handlers
-    const backToAdminPanelBtn = document.getElementById('back-to-admin-panel-btn');
-    if (backToAdminPanelBtn) {
-        backToAdminPanelBtn.addEventListener('click', () => {
-            // Navigate to hotel-only admin URL: /kagzso/admin/{hotel_name}/
-            const currentBranch = allBranches.find(b => b.id === selectedAdminBranchId);
-            if (currentBranch && currentBranch.hotelName) {
-                const hotelName = String(currentBranch.hotelName).toLowerCase().replace(/\s+/g, '-');
-                window.location.href = `/kagzso/admin/${hotelName}`;
-            } else if (selectedHotelId) {
-                // Fallback: try to get hotel name from hotels
-                (async () => {
-                    try {
-                        const client = await supabaseApi?.ensureClient();
-                        if (client) {
-                            const { data: hotels } = await client
-                                .from('hotels')
-                                .select('name')
-                                .eq('id', selectedHotelId)
-                                .limit(1);
-                            if (hotels && hotels.length > 0) {
-                                const hotelName = String(hotels[0].name).toLowerCase().replace(/\s+/g, '-');
-                                window.location.href = `/kagzso/admin/${hotelName}`;
-                            } else {
-                                window.location.href = `/kagzso/admin/${selectedHotelId}`;
-                            }
-                        }
-                    } catch (e) {
-                        console.warn('Could not get hotel name, using hotel ID:', e);
-                        window.location.href = `/kagzso/admin/${selectedHotelId}`;
-                    }
-                })();
-            }
-        });
-    }
+    // Removed redundant button handlers - navigation now handled by hamburger menu
     
     // Hamburger Menu Toggle
     const hamburgerBtn = document.getElementById('admin-hamburger-btn');
@@ -1553,29 +1611,7 @@ function setupEventListeners() {
         });
     }
     
-    const backToRestaurantBtn = document.getElementById('back-to-restaurant-btn');
-    if (backToRestaurantBtn) {
-        backToRestaurantBtn.addEventListener('click', () => {
-            // Navigate to user page for current branch: /kagzso/user/{hotel_name}/{branch_slug}/
-            const currentBranch = allBranches.find(b => b.id === selectedAdminBranchId);
-            if (currentBranch) {
-                const branchUrl = currentBranch.userUrl ? '/' + currentBranch.userUrl : null;
-                if (branchUrl) {
-                    window.location.href = branchUrl;
-                } else {
-                    // Fallback: construct URL from hotel name and branch slug
-                    const hotelName = currentBranch.hotelName 
-                        ? String(currentBranch.hotelName).toLowerCase().replace(/\s+/g, '-')
-                        : selectedHotelId;
-                    const branchSlug = currentBranch.slug || currentBranch.id;
-                    window.location.href = `/kagzso/user/${hotelName}/${branchSlug}`;
-                }
-            } else {
-                // Fallback: go to index.html
-                window.location.href = '/index.html';
-            }
-        });
-    }
+    // Removed redundant back-to-restaurant button handler - now in hamburger menu
     
     // Add null checks to prevent errors if elements don't exist
     const addItemBtn = document.getElementById('add-item-btn');
@@ -2606,6 +2642,16 @@ async function loadBranchesForAdmin() {
                     console.warn('Could not cache branches:', e);
                 }
             }
+        }
+        
+        // Load restaurant title after branches are loaded (so we can get hotel name)
+        // This runs after all branches are processed
+        if (allBranches.length > 0) {
+            setTimeout(() => {
+                loadRestaurantTitle().catch(err => {
+                    console.warn('⚠️ Restaurant title loading error:', err);
+                });
+            }, 500);
         }
         
         // Populate admin branch tiles (STRICT TENANT ISOLATION - only show selected branch)

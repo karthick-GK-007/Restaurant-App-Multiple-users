@@ -194,17 +194,87 @@ function setupPasswordAuth() {
             return;
         }
         
-        if (!ADMIN_PASSWORD || ADMIN_PASSWORD.trim() === '') {
-            errorMessage.textContent = 'Password not configured.';
+        // Get hotel identifier for password verification (same as admin panel)
+        let hotelIdentifier = null;
+        try {
+            // Try to get from URL or sessionStorage
+            const urlHash = window.location.hash || '';
+            const urlMatch = urlHash.match(/\/kagzso\/(?:admin|user)\/([^\/]+)/);
+            if (urlMatch) {
+                hotelIdentifier = urlMatch[1];
+            } else {
+                // Try sessionStorage
+                const storedHotelId = sessionStorage.getItem('selectedHotelId');
+                if (storedHotelId) {
+                    hotelIdentifier = storedHotelId;
+                }
+            }
+            
+            // If still no identifier, try to get from branches
+            if (!hotelIdentifier && typeof allBranches !== 'undefined' && allBranches.length > 0) {
+                const firstBranch = allBranches[0];
+                if (firstBranch.hotelName) {
+                    hotelIdentifier = String(firstBranch.hotelName).toLowerCase().replace(/\s+/g, '-');
+                } else if (firstBranch.hotel_id || firstBranch.hotelId) {
+                    hotelIdentifier = firstBranch.hotel_id || firstBranch.hotelId;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not determine hotel identifier:', e);
+        }
+        
+        if (!hotelIdentifier) {
+            errorMessage.textContent = 'Unable to determine hotel context. Please access via a hotel-specific URL.';
             passwordInput.focus();
             return;
         }
         
-        if (enteredPassword === ADMIN_PASSWORD.trim()) {
+        // Use Supabase password verification (same as admin panel)
+        const api = window.supabaseApi || window.apiService;
+        let isPasswordValid = false;
+        const originalButtonText = loginBtn.textContent;
+        
+        if (api && typeof api.verifyHotelAdminPassword === 'function') {
+            try {
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Verifying...';
+                
+                // Ensure API is initialized
+                if (api.initialize && typeof api.initialize === 'function') {
+                    await api.initialize();
+                }
+                
+                // Verify password using Supabase
+                isPasswordValid = await api.verifyHotelAdminPassword({
+                    hotelIdentifier,
+                    password: enteredPassword
+                });
+            } catch (error) {
+                console.error('Password verification error:', error);
+                errorMessage.textContent = 'Error verifying password. Please try again.';
+                loginBtn.disabled = false;
+                loginBtn.textContent = originalButtonText;
+                return;
+            }
+        } else {
+            // Fallback to config-based password if Supabase verification not available
+            if (!ADMIN_PASSWORD || ADMIN_PASSWORD.trim() === '') {
+                errorMessage.textContent = 'Password not configured.';
+                passwordInput.focus();
+                loginBtn.disabled = false;
+                loginBtn.textContent = originalButtonText;
+                return;
+            }
+            isPasswordValid = enteredPassword === ADMIN_PASSWORD.trim();
+        }
+        
+        if (isPasswordValid) {
             sessionStorage.setItem('adminAuthenticated', 'true');
             passwordModal.classList.add('hidden');
             salesReportPanel.classList.remove('hidden');
             errorMessage.textContent = '';
+            loginBtn.disabled = false;
+            loginBtn.textContent = originalButtonText;
             
             // Load sales data after successful authentication
             try {

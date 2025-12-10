@@ -60,33 +60,35 @@
     <div id="admin-panel" class="admin-panel hidden">
         <header>
             <div class="admin-header-banner-container">
-                <!-- Hamburger Menu -->
-                <div class="admin-hamburger-menu-container">
-                    <button id="admin-hamburger-btn" class="admin-hamburger-btn" aria-label="Menu">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-                    <div id="admin-hamburger-dropdown" class="admin-hamburger-dropdown hidden">
-                        <a href="#" id="nav-back-to-restaurant" class="admin-hamburger-item">
-                            <span class="admin-hamburger-icon">🍽️</span>
-                            <span class="admin-hamburger-text">Back to Restaurant</span>
-                        </a>
-                        <a href="#" id="nav-dashboard" class="admin-hamburger-item">
-                            <span class="admin-hamburger-icon">📊</span>
-                            <span class="admin-hamburger-text">Dashboard</span>
-                        </a>
+                <!-- BANNER BLOCK with Hamburger inside -->
+                <div id="admin-banner-block" class="admin-banner-block-new rounded-xl shadow-sm mb-4">
+                    <div class="admin-banner-inner" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
+                        <h1 id="restaurant-title-admin-header" class="text-2xl font-bold tracking-wide collapsible-header" style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; flex: 1;" data-target="admin-banner-content,admin-under-banner-content">
+                            <span id="restaurant-title-text">Restaurant Menu</span>
+                            <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </h1>
+                        <!-- Hamburger Menu inside banner -->
+                        <div class="admin-hamburger-menu-container">
+                            <button id="admin-hamburger-btn" class="admin-hamburger-btn" aria-label="Menu">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </button>
+                            <div id="admin-hamburger-dropdown" class="admin-hamburger-dropdown hidden">
+                                <a href="#" id="nav-back-to-restaurant" class="admin-hamburger-item">
+                                    <span class="admin-hamburger-icon">🍽️</span>
+                                    <span class="admin-hamburger-text">Back to Restaurant</span>
+                                </a>
+                                <a href="#" id="nav-dashboard" class="admin-hamburger-item">
+                                    <span class="admin-hamburger-icon">📊</span>
+                                    <span class="admin-hamburger-text">Dashboard</span>
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <!-- BANNER BLOCK -->
-                <div id="admin-banner-block" class="admin-banner-block-new rounded-xl shadow-sm p-6 mb-4 text-center">
-                    <h1 id="restaurant-title-admin-header" class="text-2xl font-bold tracking-wide mb-1 collapsible-header" style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;" data-target="admin-banner-content,admin-under-banner-content">
-                        <span>Restaurant Menu</span>
-                        <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </h1>
-                    <div id="admin-banner-content" class="admin-banner-content collapsible-content" style="display: none;">
+                    <div id="admin-banner-content" class="admin-banner-content collapsible-content" style="display: none; padding: 0 16px 12px 16px;">
                         <p class="text-sm opacity-80 -mt-1">Admin Panel</p>
                         <h2 class="text-lg font-semibold tracking-tight mt-1">Menu Management</h2>
                     </div>
@@ -97,10 +99,6 @@
                         <div id="admin-branch-tiles" class="branch-tiles">
                             <button class="branch-tile active" data-branch-id="">All Branches</button>
                         </div>
-                    </div>
-                    <div class="admin-navigation-buttons">
-                        <button id="back-to-admin-panel-btn" class="admin-back-button-banner">Back to Admin Panel</button>
-                        <button id="back-to-restaurant-btn" class="admin-back-button-banner">Back to Restaurant</button>
                     </div>
                 </div>
             </div>

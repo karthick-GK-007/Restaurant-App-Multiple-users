@@ -1078,7 +1078,7 @@ async function applySalesFilters() {
                 });
             }
             
-            const response = await apiService.getSales(selectedBranchId, apiFromDate, apiToDate);
+            const response = await apiService.getSales(selectedBranchId, apiFromDate, apiToDate, hotelId);
             filteredTransactions = response.transactions || [];
             console.log(`✅ API returned ${filteredTransactions.length} transactions`);
             
@@ -1092,6 +1092,12 @@ async function applySalesFilters() {
                 });
             } else if (allTransactions.length > 0) {
                 console.warn('⚠️ API returned 0 transactions but we have', allTransactions.length, 'total transactions');
+                console.log('📅 Date filter details:', {
+                    fromDate: apiFromDate,
+                    toDate: apiToDate,
+                    sampleTransactionDate: allTransactions[0].date,
+                    hotelId: hotelId
+                });
                 console.log('🔄 Trying client-side filtering as fallback...');
                 // Try client-side filtering as fallback
                 filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
@@ -1226,6 +1232,7 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
         if (fromDate || toDate) {
             const transDate = t.date || t.dateTime || '';
             if (!transDate) {
+                console.log('⚠️ Transaction missing date:', t.id);
                 return false; // Skip transactions without date
             }
             
@@ -1233,26 +1240,42 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             
             if (fromDate) {
                 const normalizedFromDate = normalizeDateForComparison(fromDate);
+                console.log('📅 Date comparison (fromDate):', {
+                    transDate: transDate,
+                    normalizedTransDate: normalizedTransDate,
+                    fromDate: fromDate,
+                    normalizedFromDate: normalizedFromDate,
+                    comparison: normalizedTransDate < normalizedFromDate ? 'EXCLUDED' : 'INCLUDED'
+                });
                 if (normalizedTransDate && normalizedFromDate) {
-                    // Include transactions on the fromDate (use <=)
+                    // Include transactions on the fromDate (use >=, not <)
                     if (normalizedTransDate < normalizedFromDate) {
                         return false;
                     }
                 } else if (!normalizedTransDate) {
                     // If we can't normalize transaction date, skip it
+                    console.warn('⚠️ Could not normalize transaction date:', transDate);
                     return false;
                 }
             }
             
             if (toDate) {
                 const normalizedToDate = normalizeDateForComparison(toDate);
+                console.log('📅 Date comparison (toDate):', {
+                    transDate: transDate,
+                    normalizedTransDate: normalizedTransDate,
+                    toDate: toDate,
+                    normalizedToDate: normalizedToDate,
+                    comparison: normalizedTransDate > normalizedToDate ? 'EXCLUDED' : 'INCLUDED'
+                });
                 if (normalizedTransDate && normalizedToDate) {
-                    // Include transactions on the toDate (use <=)
+                    // Include transactions on the toDate (use <=, not >)
                     if (normalizedTransDate > normalizedToDate) {
                         return false;
                     }
                 } else if (!normalizedTransDate) {
                     // If we can't normalize transaction date, skip it
+                    console.warn('⚠️ Could not normalize transaction date:', transDate);
                     return false;
                 }
             }

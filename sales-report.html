@@ -14,7 +14,12 @@
     <div id="password-modal" class="modal">
         <div class="modal-content">
             <h2>Admin Login</h2>
-            <input type="password" id="password-input" placeholder="Enter password" autofocus>
+            <div class="password-input-wrapper" style="position: relative; width: 100%;">
+                <input type="password" id="password-input" placeholder="Enter password" autofocus style="padding-right: 45px; width: 100%;">
+                <button type="button" id="toggle-password" class="toggle-password-btn" aria-label="Toggle password visibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; color: rgba(0, 0, 0, 0.6); font-size: 18px;">
+                    <span class="eye-icon">👁️</span>
+                </button>
+            </div>
             <button id="login-btn" class="btn btn-primary">Login</button>
             <p id="error-message" class="error-message"></p>
         </div>

@@ -16,7 +16,12 @@
             <div class="modal-header-premium">
                 <h2>🔐 Admin Access</h2>
             </div>
-            <input type="password" id="password-input" placeholder="Enter password" autofocus class="premium-input">
+            <div class="password-input-wrapper" style="position: relative; width: 100%;">
+                <input type="password" id="password-input" placeholder="Enter password" autofocus class="premium-input" style="padding-right: 45px; width: 100%;">
+                <button type="button" id="toggle-password" class="toggle-password-btn" aria-label="Toggle password visibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; color: rgba(255, 255, 255, 0.7); font-size: 18px;">
+                    <span class="eye-icon">👁️</span>
+                </button>
+            </div>
             <button id="login-btn" class="btn-premium btn-primary-premium">Login</button>
             <p id="error-message" class="error-message-premium"></p>
         </div>

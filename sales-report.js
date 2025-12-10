@@ -197,21 +197,41 @@ function setupPasswordAuth() {
         // Get hotel identifier for password verification (same as admin panel)
         let hotelIdentifier = null;
         try {
-            // Try to get from URL or sessionStorage
+            // Try multiple methods to get hotel identifier
+            // Method 1: URL hash
             const urlHash = window.location.hash || '';
             const urlMatch = urlHash.match(/\/kagzso\/(?:admin|user)\/([^\/]+)/);
             if (urlMatch) {
                 hotelIdentifier = urlMatch[1];
-            } else {
-                // Try sessionStorage
+            }
+            
+            // Method 2: URL path (for direct access)
+            if (!hotelIdentifier) {
+                const urlPath = window.location.pathname || '';
+                const pathMatch = urlPath.match(/\/kagzso\/(?:admin|user)\/([^\/]+)/);
+                if (pathMatch) {
+                    hotelIdentifier = pathMatch[1];
+                }
+            }
+            
+            // Method 3: sessionStorage
+            if (!hotelIdentifier) {
                 const storedHotelId = sessionStorage.getItem('selectedHotelId');
                 if (storedHotelId) {
                     hotelIdentifier = storedHotelId;
                 }
             }
             
-            // If still no identifier, try to get from branches
-            if (!hotelIdentifier && typeof allBranches !== 'undefined' && allBranches.length > 0) {
+            // Method 4: localStorage (fallback)
+            if (!hotelIdentifier) {
+                const localHotelId = localStorage.getItem('selectedHotelId');
+                if (localHotelId) {
+                    hotelIdentifier = localHotelId;
+                }
+            }
+            
+            // Method 5: Try to get from branches (if available)
+            if (!hotelIdentifier && typeof allBranches !== 'undefined' && allBranches && allBranches.length > 0) {
                 const firstBranch = allBranches[0];
                 if (firstBranch.hotelName) {
                     hotelIdentifier = String(firstBranch.hotelName).toLowerCase().replace(/\s+/g, '-');
@@ -219,14 +239,39 @@ function setupPasswordAuth() {
                     hotelIdentifier = firstBranch.hotel_id || firstBranch.hotelId;
                 }
             }
+            
+            // Method 6: Try to fetch from Supabase if API is available
+            if (!hotelIdentifier) {
+                const api = window.supabaseApi || window.apiService;
+                if (api && typeof api.ensureClient === 'function') {
+                    try {
+                        const client = await api.ensureClient();
+                        const { data: branches } = await client
+                            .from('branches')
+                            .select('hotel_id, hotel_name')
+                            .limit(1)
+                            .maybeSingle();
+                        if (branches) {
+                            if (branches.hotel_name) {
+                                hotelIdentifier = String(branches.hotel_name).toLowerCase().replace(/\s+/g, '-');
+                            } else if (branches.hotel_id) {
+                                hotelIdentifier = branches.hotel_id;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch hotel from Supabase:', e);
+                    }
+                }
+            }
         } catch (e) {
             console.warn('Could not determine hotel identifier:', e);
         }
         
+        // If still no identifier, use a default or show a more helpful error
         if (!hotelIdentifier) {
-            errorMessage.textContent = 'Unable to determine hotel context. Please access via a hotel-specific URL.';
-            passwordInput.focus();
-            return;
+            console.warn('⚠️ No hotel identifier found, trying with entered password as fallback');
+            // Don't block - let the verification function try with empty identifier
+            // The verifyHotelAdminPassword function should handle this gracefully
         }
         
         // Use Supabase password verification (same as admin panel)
@@ -245,13 +290,26 @@ function setupPasswordAuth() {
                 }
                 
                 // Verify password using Supabase
-                isPasswordValid = await api.verifyHotelAdminPassword({
-                    hotelIdentifier,
+                // Pass hotelIdentifier only if we have it, otherwise let the function try to find it
+                const verifyParams = {
                     password: enteredPassword
-                });
+                };
+                if (hotelIdentifier) {
+                    verifyParams.hotelIdentifier = hotelIdentifier;
+                }
+                
+                isPasswordValid = await api.verifyHotelAdminPassword(verifyParams);
             } catch (error) {
                 console.error('Password verification error:', error);
-                errorMessage.textContent = 'Error verifying password. Please try again.';
+                // More helpful error message
+                const errorMsg = error.message || String(error) || 'Unknown error';
+                if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('timeout')) {
+                    errorMessage.textContent = 'Network error. Please check your connection and try again.';
+                } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+                    errorMessage.textContent = 'Hotel not found. Please check your URL or try again.';
+                } else {
+                    errorMessage.textContent = `Error verifying password: ${errorMsg}. Please try again.`;
+                }
                 loginBtn.disabled = false;
                 loginBtn.textContent = originalButtonText;
                 return;

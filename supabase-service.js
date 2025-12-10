@@ -966,34 +966,94 @@ class SupabaseAPI {
     }
 
     async verifyHotelAdminPassword({ hotelIdentifier, password }) {
-        const trimmedIdentifier = hotelIdentifier ? String(hotelIdentifier).trim() : '';
         const trimmedPassword = password ? String(password).trim() : '';
-        if (!trimmedIdentifier || !trimmedPassword) {
-            throw new Error('Hotel identifier and password are required for verification');
+        if (!trimmedPassword) {
+            throw new Error('Password is required for verification');
+        }
+        
+        // Hotel identifier is optional - try to find it if not provided
+        let trimmedIdentifier = hotelIdentifier ? String(hotelIdentifier).trim() : '';
+        
+        // If no identifier provided, try to get from various sources
+        if (!trimmedIdentifier) {
+            try {
+                const client = await this.ensureClient();
+                // Try to get from branches
+                const { data: branches } = await client
+                    .from('branches')
+                    .select('hotel_id, hotel_name')
+                    .limit(1)
+                    .maybeSingle();
+                if (branches) {
+                    if (branches.hotel_name) {
+                        trimmedIdentifier = String(branches.hotel_name).toLowerCase().replace(/\s+/g, '-');
+                    } else if (branches.hotel_id) {
+                        trimmedIdentifier = branches.hotel_id;
+                    }
+                }
+                
+                // If still no identifier, try sessionStorage
+                if (!trimmedIdentifier) {
+                    trimmedIdentifier = sessionStorage.getItem('selectedHotelId') || '';
+                }
+            } catch (e) {
+                console.warn('Could not auto-detect hotel identifier:', e);
+            }
+        }
+        
+        // If still no identifier, try to verify with password only (let the function try all hotels)
+        if (!trimmedIdentifier) {
+            console.warn('⚠️ No hotel identifier found, attempting verification with password only');
         }
         const client = await this.ensureClient();
         
         // Try multiple identifier formats to match the database
         // The database function matches: hotel_id, slug, name, or REPLACE(name, ' ', '-')
-        const identifiersToTry = [
-            trimmedIdentifier,                    // Original: "suganya-hotel"
-            trimmedIdentifier.replace(/-hotel$/i, ''), // Remove "-hotel": "suganya"
-        ];
+        const identifiersToTry = [];
         
-        // Also try to fetch hotel ID if we have a hotel name
-        // This helps when the URL has "suganya-hotel" but we need "Hotel-001"
-        try {
-            const hotelKey = trimmedIdentifier.replace(/-hotel$/i, '');
-            if (hotelKey && hotelKey !== trimmedIdentifier) {
-                // Try to find hotel by name to get the actual hotel_id
-                const { data: hotels, error: hotelError } = await client
+        if (trimmedIdentifier) {
+            identifiersToTry.push(trimmedIdentifier);                    // Original: "suganya-hotel"
+            identifiersToTry.push(trimmedIdentifier.replace(/-hotel$/i, '')); // Remove "-hotel": "suganya"
+            
+            // Also try to fetch hotel ID if we have a hotel name
+            // This helps when the URL has "suganya-hotel" but we need "Hotel-001"
+            try {
+                const hotelKey = trimmedIdentifier.replace(/-hotel$/i, '');
+                if (hotelKey && hotelKey !== trimmedIdentifier) {
+                    // Try to find hotel by name to get the actual hotel_id
+                    const { data: hotels, error: hotelError } = await client
+                        .from('hotels')
+                        .select('id, name, slug')
+                        .or(`name.ilike.%${hotelKey}%,slug.ilike.%${hotelKey}%,name.ilike.%${trimmedIdentifier}%`);
+                    
+                    if (!hotelError && hotels && hotels.length > 0) {
+                        // Add the actual hotel IDs to try
+                        hotels.forEach(hotel => {
+                            if (hotel.id) identifiersToTry.push(hotel.id);
+                            if (hotel.slug) identifiersToTry.push(hotel.slug);
+                            if (hotel.name) {
+                                identifiersToTry.push(hotel.name);
+                                identifiersToTry.push(hotel.name.toLowerCase().replace(/\s+/g, '-'));
+                            }
+                        });
+                        console.log('🔍 Found hotels matching identifier:', hotels.map(h => ({ id: h.id, name: h.name, slug: h.slug })));
+                    }
+                }
+            } catch (fetchError) {
+                console.warn('⚠️ Could not fetch hotel data:', fetchError.message);
+            }
+        }
+        
+        // If no identifiers found, try to get all hotels and verify against each
+        if (identifiersToTry.length === 0) {
+            console.warn('⚠️ No hotel identifiers found, trying to verify against all hotels');
+            try {
+                const { data: allHotels } = await client
                     .from('hotels')
                     .select('id, name, slug')
-                    .or(`name.ilike.%${hotelKey}%,slug.ilike.%${hotelKey}%,name.ilike.%${trimmedIdentifier}%`);
-                
-                if (!hotelError && hotels && hotels.length > 0) {
-                    // Add the actual hotel IDs to try
-                    hotels.forEach(hotel => {
+                    .limit(10); // Limit to prevent too many attempts
+                if (allHotels && allHotels.length > 0) {
+                    allHotels.forEach(hotel => {
                         if (hotel.id) identifiersToTry.push(hotel.id);
                         if (hotel.slug) identifiersToTry.push(hotel.slug);
                         if (hotel.name) {
@@ -1001,17 +1061,21 @@ class SupabaseAPI {
                             identifiersToTry.push(hotel.name.toLowerCase().replace(/\s+/g, '-'));
                         }
                     });
-                    console.log('🔍 Found hotels matching identifier:', hotels.map(h => ({ id: h.id, name: h.name, slug: h.slug })));
                 }
+            } catch (e) {
+                console.warn('Could not fetch all hotels:', e);
             }
-        } catch (fetchError) {
-            console.warn('⚠️ Could not fetch hotel data:', fetchError.message);
         }
         
         // Remove duplicates and empty values
         const uniqueIdentifiers = [...new Set(identifiersToTry.filter(id => id && id.trim()))];
         
         console.log('🔍 Trying hotel identifiers:', uniqueIdentifiers);
+        
+        // If still no identifiers, throw a helpful error
+        if (uniqueIdentifiers.length === 0) {
+            throw new Error('Unable to determine hotel context. Please access the dashboard from a hotel-specific admin page.');
+        }
         
         // Try each identifier format
         for (const identifier of uniqueIdentifiers) {

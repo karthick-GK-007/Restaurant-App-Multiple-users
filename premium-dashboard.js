@@ -1793,9 +1793,6 @@ function setupMenuInsightsFilters(allTransactions) {
                 console.log(`🔒 Filtered ${originalCount} transactions to ${transactions.length} for hotel_id: ${hotelId}`);
             }
         }
-        } else {
-            transactions = currentTransactions;
-        }
         
         console.log(`📊 Total transactions available: ${transactions.length}`);
         

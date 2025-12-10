@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const HTML_FILES = ['admin.html', 'index.html'];
+const HTML_FILES = ['admin.html', 'index.html', 'premium-dashboard.html', 'sales-report.html'];
 const PLACEHOLDER = '// PLACEHOLDER_FOR_BUILD_SCRIPT - will be replaced by build.js';
 
 function injectEnvVars() {

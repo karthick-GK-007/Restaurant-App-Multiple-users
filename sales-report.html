@@ -139,6 +139,79 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Runtime Supabase credentials - MUST load before supabase-service.js -->
+    <script>
+        // Supabase Configuration Loader
+        // Priority: 1) Vercel env vars (injected at build time), 2) localStorage (local dev fallback)
+        // MUST run before supabase-service.js to ensure window.SUPABASE_CONFIG is set immediately
+        (function loadSupabaseConfig() {
+            'use strict';
+            
+            // Priority 1: Check for build-time injected Vercel environment variables
+            // These are injected by build.js during Vercel deployment
+            // PLACEHOLDER_FOR_BUILD_SCRIPT - will be replaced by build.js
+            if (typeof window.__VERCEL_SUPABASE_URL__ !== 'undefined' && typeof window.__VERCEL_SUPABASE_ANON_KEY__ !== 'undefined') {
+                window.SUPABASE_CONFIG = {
+                    url: window.__VERCEL_SUPABASE_URL__,
+                    anonKey: window.__VERCEL_SUPABASE_ANON_KEY__
+                };
+                console.log('✅ window.SUPABASE_CONFIG set from Vercel environment variables (production)');
+                return;
+            }
+            
+            // Priority 2: Fallback to localStorage (for local development)
+            function loadFromLocalStorage() {
+                try {
+                    const stored = localStorage.getItem('supabase_config');
+                    
+                    if (stored) {
+                        const config = JSON.parse(stored);
+                        
+                        // Extract URL and key from any format
+                        const url = (config.url || config.supabaseUrl || '').trim();
+                        const anonKey = (config.anonKey || config.supabaseKey || '').trim();
+                        
+                        if (url && anonKey) {
+                            // Set window.SUPABASE_CONFIG immediately
+                            window.SUPABASE_CONFIG = { 
+                                url: url, 
+                                anonKey: anonKey
+                            };
+                            console.log('✅ window.SUPABASE_CONFIG set from localStorage (local dev)');
+                            return true;
+                        } else {
+                            console.error('❌ Config missing url or anonKey:', { 
+                                hasUrl: !!url, 
+                                hasAnonKey: !!anonKey,
+                                configKeys: Object.keys(config)
+                            });
+                        }
+                    } else {
+                        console.warn('⚠️ No supabase_config in localStorage. For local development, visit /supabase-config.html to configure.');
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to load Supabase config from localStorage:', error);
+                }
+                return false;
+            }
+            
+            // Try loading from localStorage
+            const loaded = loadFromLocalStorage();
+            
+            // Expose reload function for manual config refresh
+            window.reloadSupabaseConfig = loadFromLocalStorage;
+            
+            // Verify it's set
+            if (!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || !window.SUPABASE_CONFIG.anonKey) {
+                console.error('❌ window.SUPABASE_CONFIG not properly set!', window.SUPABASE_CONFIG);
+                console.error('❌ This usually means:');
+                console.error('   1. In production: Vercel env vars not injected (check build logs) or not set in Vercel dashboard');
+                console.error('   2. In local dev: Visit /supabase-config.html to configure');
+            } else {
+                console.log('✅ Verified: window.SUPABASE_CONFIG is ready');
+            }
+        })();
+    </script>
     <!-- Supabase API Service (replaces Google Sheets API) -->
     <script src="supabase-service.js"></script>
     <script src="sales-report.js"></script>

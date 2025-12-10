@@ -1350,19 +1350,37 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             }
         }
         
-        // Filter by date - normalize both transaction date and filter dates
-        // STRICT: Both fromDate and toDate must be valid for filtering to work
+        // Filter by date - Database stores dates in YYYY-MM-DD format in 'date' column
+        // Also handle date_time (timestamptz) as fallback: "2025-12-12 00:04:00+00" -> "2025-12-12"
         if (fromDate || toDate) {
-            const transDate = t.date || t.dateTime || '';
+            // Database uses 'date' column in YYYY-MM-DD format
+            // Also check date_time (timestamptz) as fallback: extract date part
+            let transDate = t.date || '';
+            if (!transDate && t.date_time) {
+                // Extract date from timestamptz: "2025-12-12 00:04:00+00" -> "2025-12-12"
+                transDate = t.date_time.split(' ')[0].split('T')[0];
+            }
+            if (!transDate && t.dateTime) {
+                // Fallback to dateTime field if it exists
+                transDate = t.dateTime.split(' ')[0].split('T')[0];
+            }
+            
             if (!transDate) {
                 return false; // Skip transactions without date
             }
             
+            // Normalize transaction date to YYYY-MM-DD (database format)
             const normalizedTransDate = normalizeDateForComparison(transDate);
             
             // Validate normalized date is in YYYY-MM-DD format
             if (!normalizedTransDate || !normalizedTransDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                console.warn('⚠️ Could not normalize transaction date:', transDate, '→', normalizedTransDate);
+                console.warn('⚠️ Could not normalize transaction date to YYYY-MM-DD:', {
+                    original: transDate,
+                    normalized: normalizedTransDate,
+                    transactionId: t.id,
+                    dateField: t.date,
+                    dateTimeField: t.date_time || t.dateTime
+                });
                 return false; // Skip if we can't normalize
             }
             
@@ -1370,13 +1388,16 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             
             // Filter by fromDate (exclude dates before fromDate)
             if (fromDate) {
+                // Date picker returns YYYY-MM-DD format, but normalize to be safe
                 const normalizedFromDate = normalizeDateForComparison(fromDate);
                 if (!normalizedFromDate || !normalizedFromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    console.warn('⚠️ Could not normalize fromDate:', fromDate, '→', normalizedFromDate);
+                    console.warn('⚠️ Could not normalize fromDate to YYYY-MM-DD:', {
+                        original: fromDate,
+                        normalized: normalizedFromDate
+                    });
                     return false; // Skip if we can't normalize filter date
                 }
-                // Exclude transactions before fromDate (strict: < means exclude)
-                // Use <= to include transactions on the fromDate
+                // Exclude transactions before fromDate (use < to exclude, >= to include)
                 if (normalizedTransDate < normalizedFromDate) {
                     dateMatches = false;
                 }
@@ -1384,13 +1405,16 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             
             // Filter by toDate (exclude dates after toDate)
             if (toDate && dateMatches) {
+                // Date picker returns YYYY-MM-DD format, but normalize to be safe
                 const normalizedToDate = normalizeDateForComparison(toDate);
                 if (!normalizedToDate || !normalizedToDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    console.warn('⚠️ Could not normalize toDate:', toDate, '→', normalizedToDate);
+                    console.warn('⚠️ Could not normalize toDate to YYYY-MM-DD:', {
+                        original: toDate,
+                        normalized: normalizedToDate
+                    });
                     return false; // Skip if we can't normalize filter date
                 }
-                // Exclude transactions after toDate (strict: > means exclude)
-                // Use <= to include transactions on the toDate
+                // Exclude transactions after toDate (use > to exclude, <= to include)
                 if (normalizedTransDate > normalizedToDate) {
                     dateMatches = false;
                 }
@@ -1406,7 +1430,11 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
                     normalizedFromDate: fromDate ? normalizeDateForComparison(fromDate) : null,
                     toDate: toDate,
                     normalizedToDate: toDate ? normalizeDateForComparison(toDate) : null,
-                    dateMatches: dateMatches
+                    dateMatches: dateMatches,
+                    comparison: fromDate && toDate ? 
+                        `${normalizeDateForComparison(fromDate)} <= ${normalizedTransDate} <= ${normalizeDateForComparison(toDate)}` :
+                        fromDate ? `${normalizeDateForComparison(fromDate)} <= ${normalizedTransDate}` :
+                        toDate ? `${normalizedTransDate} <= ${normalizeDateForComparison(toDate)}` : 'N/A'
                 });
             }
             

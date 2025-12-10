@@ -2702,6 +2702,15 @@ async function confirmPayment() {
         const branch = branches.find(b => b.id == selectedBranchId);
         const branchName = branch ? branch.name : 'Unknown Branch';
         
+        // Get hotel_id from branch or sessionStorage (required for multi-tenant support)
+        let hotelId = selectedHotelId || sessionStorage.getItem('selectedHotelId') || null;
+        if (!hotelId && branch) {
+            hotelId = branch.hotel_id || branch.hotelId || null;
+        }
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found - transaction may not save correctly');
+        }
+        
         // Get active QR (temporary override or branch default)
         const activeQR = getActiveQR(selectedBranchId);
         
@@ -2720,6 +2729,8 @@ async function confirmPayment() {
         // Create transaction record
         const transaction = {
             id: Date.now(),
+            hotelId: hotelId,  // STRICT: Include hotel_id for multi-tenant support
+            hotel_id: hotelId, // Also include snake_case for compatibility
             branchId: selectedBranchId,
             branchName: branchName,
             date: formatISTDate(new Date()),
@@ -2762,9 +2773,15 @@ async function confirmPayment() {
         
         // Save transaction to Supabase (fallback to local backup)
         let saveSuccess = false;
+        let saveError = null;
         try {
-            console.log('Attempting to save to Supabase...');
-            console.log('Transaction data:', JSON.stringify(transaction, null, 2));
+            console.log('💾 Attempting to save transaction to Supabase...');
+            console.log('📋 Transaction data:', JSON.stringify(transaction, null, 2));
+            
+            // Ensure Supabase API is initialized
+            if (supabaseApi && typeof supabaseApi.ensureClient === 'function') {
+                await supabaseApi.ensureClient();
+            }
             
             const saveFn = (supabaseApi && typeof supabaseApi.saveOrder === 'function')
                 ? supabaseApi.saveOrder.bind(supabaseApi)
@@ -2782,10 +2799,24 @@ async function confirmPayment() {
 
             saveSuccess = true;
             console.log('✅ Transaction saved successfully to Supabase');
+            console.log('📊 Transaction ID:', result.data?.id || transaction.id);
+            
+            // Trigger dashboard refresh if dashboard is open
+            if (typeof window.updateDashboardData === 'function') {
+                setTimeout(() => {
+                    window.updateDashboardData().catch(err => console.warn('Dashboard refresh error:', err));
+                }, 1000);
+            }
+            // Also dispatch event for dashboard to listen
+            window.dispatchEvent(new CustomEvent('transactionSaved', { detail: transaction }));
         } catch (error) {
+            saveError = error;
             console.error('❌ Error saving to Supabase:', error);
-            console.error('Error details:', {
+            console.error('❌ Error details:', {
                 message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint,
                 stack: error.stack,
                 transaction: transaction
             });
@@ -2805,9 +2836,9 @@ async function confirmPayment() {
         // Hide payment loader before showing popup
         hidePaymentLoader();
         
-        // Show success message with popup
+        // Show success/error message with popup
         if (saveSuccess) {
-            showPopup('success', 'Payment Confirmed!', 'Payment details are saved successfully!', [
+            showPopup('success', 'Payment Confirmed!', 'Payment details are saved successfully to the database!', [
                 {
                     text: 'OK',
                     class: 'success',
@@ -2835,7 +2866,9 @@ async function confirmPayment() {
                 }
             ]);
         } else {
-            showPopup('info', 'Payment Confirmed!', 'Payment details are saved successfully!', [
+            // Show warning if database save failed but localStorage backup succeeded
+            const errorMsg = saveError ? `Database save failed: ${saveError.message}. Payment saved to local backup only.` : 'Payment saved to local backup only.';
+            showPopup('warning', 'Payment Confirmed (Local Backup)', errorMsg + ' Please check your connection and try again.', [
                 {
                     text: 'OK',
                     class: 'primary',

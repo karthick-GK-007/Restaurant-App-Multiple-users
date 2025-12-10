@@ -730,23 +730,39 @@ class SupabaseAPI {
 
     async saveOrder(order) {
         const client = await this.ensureClient();
+        if (!client) {
+            throw new Error('Supabase client not initialized');
+        }
+        
         const branchId = order.branch_id || order.branchId || sessionStorage.getItem('selectedBranchId') || 'demo-branch';
         const hotelId = order.hotel_id || order.hotelId || sessionStorage.getItem('selectedHotelId') || null;
         const branchName = order.branch_name || order.branchName || null;
+        
+        console.log('💾 saveOrder called with:', { branchId, hotelId, branchName, itemCount: order.items?.length || 0 });
         
         // Get hotel_id from branch if not provided
         let finalHotelId = hotelId;
         if (!finalHotelId && branchId) {
             try {
-                const { data: branchData } = await client
+                const { data: branchData, error: branchError } = await client
                     .from('branches')
                     .select('hotel_id')
                     .eq('id', branchId)
                     .maybeSingle();
-                finalHotelId = branchData?.hotel_id || null;
+                
+                if (branchError) {
+                    console.warn('⚠️ Error fetching hotel_id from branch:', branchError);
+                } else if (branchData?.hotel_id) {
+                    finalHotelId = branchData.hotel_id;
+                    console.log('✅ Found hotel_id from branch:', finalHotelId);
+                }
             } catch (e) {
-                console.warn('Could not fetch hotel_id from branch', e);
+                console.warn('⚠️ Could not fetch hotel_id from branch:', e);
             }
+        }
+        
+        if (!finalHotelId) {
+            console.warn('⚠️ No hotel_id available - transaction may not be properly scoped');
         }
         
         const nowIso = new Date().toISOString();
@@ -783,15 +799,33 @@ class SupabaseAPI {
             qr_code_url: order.qrCodeURL || order.qr_code_url || null
         };
 
+        console.log('💾 Inserting transaction:', {
+            id: transactionId,
+            hotel_id: finalHotelId,
+            branch_id: branchId,
+            total: transactionData.total,
+            itemCount: items.length
+        });
+        
         const { data: savedTransaction, error: transactionError } = await client
             .from('transactions')
             .insert(transactionData)
             .select()
             .single();
+            
         if (transactionError) {
+            console.error('❌ Transaction insert error:', {
+                message: transactionError.message,
+                code: transactionError.code,
+                details: transactionError.details,
+                hint: transactionError.hint,
+                transactionData: transactionData
+            });
             this.queueOfflineTransaction(order);
-            throw transactionError;
+            throw new Error(`Failed to save transaction: ${transactionError.message}${transactionError.details ? ' - ' + transactionError.details : ''}${transactionError.hint ? ' (Hint: ' + transactionError.hint + ')' : ''}`);
         }
+        
+        console.log('✅ Transaction saved successfully:', savedTransaction?.id || transactionId);
 
         const items = order.items || [];
         if (items.length) {
@@ -815,12 +849,28 @@ class SupabaseAPI {
                 size: item.size || null,
                 subtotal: this.parseDecimal(item.subtotal ?? ((item.finalPrice ?? (item.price || 0)) * (parseInt(item.quantity, 10) || 1)))
             }));
-            const { error: itemsError } = await client
+            
+            console.log('💾 Inserting transaction items:', payload.length, 'items');
+            const { data: savedItems, error: itemsError } = await client
                 .from('transaction_items')
-                .insert(payload);
+                .insert(payload)
+                .select();
+                
             if (itemsError) {
-                console.warn('Transaction saved but items failed', itemsError);
+                console.error('❌ Transaction items insert error:', {
+                    message: itemsError.message,
+                    code: itemsError.code,
+                    details: itemsError.details,
+                    hint: itemsError.hint,
+                    payloadCount: payload.length
+                });
+                // Don't throw - transaction is saved, items are optional
+                console.warn('⚠️ Transaction saved but items failed - transaction may be incomplete');
+            } else {
+                console.log('✅ Transaction items saved successfully:', savedItems?.length || payload.length, 'items');
             }
+        } else {
+            console.warn('⚠️ No items in transaction - saving transaction without items');
         }
 
         return { success: true, data: { ...savedTransaction, items } };

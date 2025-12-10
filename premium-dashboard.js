@@ -266,6 +266,26 @@ function setupDashboardUpdateHook() {
         }
     });
     
+    // Listen for transactionSaved event (when payment is completed)
+    window.addEventListener('transactionSaved', async (e) => {
+        console.log('💾 Received transactionSaved event, refreshing dashboard...');
+        const panel = document.getElementById('sales-report-panel');
+        if (panel && !panel.classList.contains('hidden')) {
+            // Reload sales data and update dashboard
+            setTimeout(async () => {
+                try {
+                    if (typeof loadSalesData === 'function') {
+                        await loadSalesData();
+                    }
+                    await updateDashboardData();
+                    console.log('✅ Dashboard refreshed after transaction save');
+                } catch (err) {
+                    console.error('❌ Error refreshing dashboard after transaction save:', err);
+                }
+            }, 1000);
+        }
+    });
+    
     // Override setupEventListeners for premium dashboard
     const originalSetupEventListeners = window.setupEventListeners;
     if (originalSetupEventListeners) {

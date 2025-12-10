@@ -922,11 +922,24 @@ class SupabaseAPI {
         }
         
         query = query.order('date_time', { ascending: false });
+        
+        // Date filtering: Database stores dates in YYYY-MM-DD format (as per schema)
+        // Date inputs are also in YYYY-MM-DD format, so string comparison works correctly
         if (fromDate) {
-            query = query.gte('date', fromDate);
+            // Validate format and filter
+            if (fromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                query = query.gte('date', fromDate);
+            } else {
+                console.warn('⚠️ Invalid date format for fromDate:', fromDate);
+            }
         }
         if (toDate) {
-            query = query.lte('date', toDate);
+            // Validate format and filter
+            if (toDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                query = query.lte('date', toDate);
+            } else {
+                console.warn('⚠️ Invalid date format for toDate:', toDate);
+            }
         }
         const { data, error } = await query;
         if (error) throw error;

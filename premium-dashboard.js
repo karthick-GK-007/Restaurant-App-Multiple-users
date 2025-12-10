@@ -1055,8 +1055,8 @@ async function applySalesFilters() {
                 fromDate: fromDate || null,
                 toDate: toDate || null
             });
-            // Ensure dates are in correct format (YYYY-MM-DD) for API
-            // Date input already provides YYYY-MM-DD format, so we can use it directly
+            // Date inputs are already in YYYY-MM-DD format, which matches database format
+            // Database stores dates in YYYY-MM-DD format (as per schema)
             const apiFromDate = fromDate || null;
             const apiToDate = toDate || null;
             
@@ -1071,6 +1071,7 @@ async function applySalesFilters() {
             if (allTransactions.length > 0) {
                 console.log('📋 Sample transaction from all data:', {
                     date: allTransactions[0].date,
+                    dateTime: allTransactions[0].dateTime,
                     branchId: allTransactions[0].branchId,
                     branchIdType: typeof allTransactions[0].branchId,
                     branchName: allTransactions[0].branchName

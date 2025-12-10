@@ -2727,14 +2727,20 @@ async function confirmPayment() {
         }
         
         // Create transaction record
+        // IMPORTANT: date must be in YYYY-MM-DD format for database (as per schema)
+        // dateTime can be in DD/MM/YYYY, HH:MM AM/PM format for display
+        const now = new Date();
+        const istDate = toIST(now);
+        const dateYYYYMMDD = `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
+        
         const transaction = {
             id: Date.now(),
             hotelId: hotelId,  // STRICT: Include hotel_id for multi-tenant support
             hotel_id: hotelId, // Also include snake_case for compatibility
             branchId: selectedBranchId,
             branchName: branchName,
-            date: formatISTDate(new Date()),
-            dateTime: formatIST(new Date()),
+            date: dateYYYYMMDD,  // YYYY-MM-DD format for database queries
+            dateTime: formatIST(now),  // DD/MM/YYYY, HH:MM AM/PM format for display
             orderType: summary.orderType,
             items: summary.items.map(item => ({
                 id: item.id,

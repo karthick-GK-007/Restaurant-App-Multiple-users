@@ -1892,7 +1892,7 @@ function setupEventListeners() {
     }
     
     document.getElementById('confirm-payment').addEventListener('click', confirmPayment);
-    document.getElementById('print-bill').addEventListener('click', printBill);
+    document.getElementById('print-bill').addEventListener('click', () => printBill().catch(err => console.error('Print bill error:', err)));
     document.getElementById('back-to-menu').addEventListener('click', backToMenu);
     
     // Change QR button
@@ -2820,7 +2820,7 @@ async function confirmPayment() {
                                 onClick: () => {
                                     document.getElementById('print-bill').disabled = false;
                                     window.currentTransaction = transaction;
-                                    printBill();
+                                    printBill().catch(err => console.error('Print bill error:', err));
                                 }
                             },
                             {
@@ -2848,7 +2848,7 @@ async function confirmPayment() {
                                 onClick: () => {
                                     document.getElementById('print-bill').disabled = false;
                                     window.currentTransaction = transaction;
-                                    printBill();
+                                    printBill().catch(err => console.error('Print bill error:', err));
                                 }
                             },
                             {
@@ -2919,7 +2919,7 @@ async function saveSalesData(data) {
 }
 
 // Print bill
-function printBill() {
+async function printBill() {
     if (!window.currentTransaction) {
         alert('Please confirm payment first.');
         return;
@@ -2933,8 +2933,29 @@ function printBill() {
     const branchName = branch ? branch.name : transaction.branchName || 'Restaurant';
     const showTax = transaction.showTaxOnBill !== false;
     
-    // Get restaurant title from config (use global variable or fetch from DOM)
-    const restaurantName = restaurantTitle || document.getElementById('restaurant-title')?.textContent || 'Restaurant';
+    // Get hotel name from hotel_admin_auth_check (preferred) or fallback to restaurant title
+    let hotelName = '';
+    try {
+        const api = supabaseApi || window.apiService;
+        if (api && selectedHotelId) {
+            const client = await api.ensureClient();
+            const { data: hotelData } = await client
+                .from('hotel_admin_auth_check')
+                .select('hotel_name')
+                .eq('hotel_id', selectedHotelId)
+                .maybeSingle();
+            if (hotelData && hotelData.hotel_name) {
+                hotelName = hotelData.hotel_name;
+            }
+        }
+    } catch (e) {
+        console.warn('Could not fetch hotel name for bill:', e);
+    }
+    
+    // Format restaurant name: "HotelName Restaurant" or fallback
+    const restaurantName = hotelName 
+        ? `${hotelName} Restaurant`
+        : (restaurantTitle || document.getElementById('restaurant-title')?.textContent || 'Restaurant');
     
     // Format date/time in IST
     const dateTimeIST = formatIST(new Date(transaction.timestamp));

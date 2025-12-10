@@ -571,12 +571,16 @@ class SupabaseAPI {
         const client = await this.ensureClient();
         
         // Normalize IDs to strings for consistent comparison
-        const itemId = String(item.id || '');
+        // For new items, generate ID if not provided
+        let itemId = String(item.id || '');
         const branchId = String(item.branchId || item.branch_id || '');
         
-        if (!itemId) {
-            throw new Error('Item ID is required');
+        // Generate ID for new items if not provided
+        if (!itemId || itemId === '0' || itemId === 'null' || itemId === 'undefined') {
+            itemId = String(Date.now());
+            item.id = parseInt(itemId);
         }
+        
         if (!branchId) {
             throw new Error('Branch ID is required');
         }
@@ -1106,7 +1110,8 @@ class SupabaseAPI {
     }
 
     prepareMenuItemPayload(item) {
-        return {
+        // Null-safe image handling - only include if it exists and is not empty
+        const payload = {
             id: item.id,
             branch_id: item.branchId,
             branch_name: item.branchName || '',
@@ -1115,7 +1120,6 @@ class SupabaseAPI {
             price: this.parseDecimal(item.price),
             has_sizes: item.hasSizes || false,
             sizes: item.sizes || null,
-            image: item.image || null,
             availability: item.availability || 'Available',
             pricing_mode: item.pricingMode || 'inclusive',
             pricing_metadata: item.pricingMetadata || {},
@@ -1127,6 +1131,15 @@ class SupabaseAPI {
             onlineorder_sgst_percentage: this.parseDecimal(item.gst?.onlineorder?.sgst),
             show_tax_on_bill: item.showTaxOnBill !== false
         };
+        
+        // Only include image field if it exists and is not empty (null-safe)
+        if (item.image && item.image.trim() !== '') {
+            payload.image = item.image;
+        }
+        // If image is explicitly null/undefined/empty, don't include it in payload
+        // This prevents "Could not find 'image' column" errors
+        
+        return payload;
     }
 
     queueOfflineTransaction(transaction) {

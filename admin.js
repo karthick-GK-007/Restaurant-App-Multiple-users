@@ -257,14 +257,14 @@ async function loadRestaurantTitle() {
             }
         }
         
-        // Format title: "HotelName Restaurant Menu" or just "Restaurant Menu" if no hotel name
-        let displayTitle = 'Restaurant Menu';
+        // Format title: "Admin Panel - HotelName" (removed "Restaurant Menu")
+        let displayTitle = 'Admin Panel';
         if (hotelName) {
             // Capitalize first letter of each word
             const formattedHotelName = hotelName.split(' ').map(word => 
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             ).join(' ');
-            displayTitle = `${formattedHotelName} Restaurant Menu`;
+            displayTitle = `Admin Panel - ${formattedHotelName}`;
         }
         
         // Update the title text element
@@ -2975,15 +2975,23 @@ async function handleItemSubmit(e) {
 
 // Save item helper function
 async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailability, imagePath, hasSizes) {
+    // Ensure itemId is always set - use provided ID or generate new one
+    const finalItemId = itemId ? parseInt(itemId) : Date.now();
+    
+    // Null-safe image handling - only include if it exists
     const newItem = {
-        id: itemId ? parseInt(itemId) : Date.now(),
+        id: finalItemId,
         branchId: branchId,
         name: itemName,
         category: itemCategory,
         availability: itemAvailability,
-        image: imagePath,
         hasSizes: hasSizes
     };
+    
+    // Only add image if it exists and is not empty
+    if (imagePath && imagePath.trim() !== '') {
+        newItem.image = imagePath;
+    }
     
     const pricingMode = 'inclusive';
     const includesTax = true;

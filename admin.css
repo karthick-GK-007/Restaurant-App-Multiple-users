@@ -4,6 +4,114 @@
     font-size: 0.95rem;
 }
 
+/* Hamburger Menu */
+.admin-hamburger-menu-container {
+    position: relative;
+    z-index: 1000;
+    margin-bottom: 12px;
+}
+
+.admin-hamburger-btn {
+    background: var(--primary);
+    color: var(--inverse);
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.2);
+    padding: 10px;
+}
+
+.admin-hamburger-btn:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 4px 8px rgba(var(--primary-rgb), 0.3);
+    transform: translateY(-1px);
+}
+
+.admin-hamburger-btn span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--inverse);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.admin-hamburger-btn:hover span {
+    background: var(--inverse);
+}
+
+.admin-hamburger-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    background: var(--surface);
+    border: 1px solid rgba(var(--text-primary-rgb), 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    min-width: 220px;
+    overflow: hidden;
+    z-index: 1001;
+    animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.admin-hamburger-dropdown.hidden {
+    display: none;
+}
+
+.admin-hamburger-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(var(--text-primary-rgb), 0.05);
+    cursor: pointer;
+}
+
+.admin-hamburger-item:last-child {
+    border-bottom: none;
+}
+
+.admin-hamburger-item:hover {
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary);
+}
+
+.admin-hamburger-icon {
+    font-size: 1.2em;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.admin-hamburger-text {
+    font-size: 0.95em;
+    font-weight: 500;
+    font-family: var(--theme-font);
+}
+
 /* Collapsible sections with chevron icons */
 .collapsible-header {
     display: flex;
@@ -500,38 +608,42 @@ input[type="number"]:focus {
 }
 
 .view-btn-admin {
-    padding: 10px 20px;
-    border: none;
-    background: transparent;
+    padding: 6px 14px;
+    border: 1px solid rgba(var(--text-primary-rgb), 0.15);
+    background: #ffffff;
     color: var(--text-primary);
-    border-radius: 8px;
-    font-size: 0.95em;
+    border-radius: 999px;
+    font-size: 0.9em;
     font-weight: 500;
     font-family: var(--theme-font);
-    transition: all 0.2s ease;
-    min-height: 44px;
+    transition: all 0.3s ease;
+    min-height: auto;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .view-btn-admin:hover {
     background: rgba(var(--primary-rgb), 0.1);
-    color: var(--text-primary);
+    color: var(--primary);
+    border-color: var(--primary);
 }
 
 .view-btn-admin.active {
     background: var(--primary);
     color: var(--surface);
-    box-shadow: 0 2px 4px rgba(var(--primary-rgb), 0.3);
+    border-color: var(--primary);
+    box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.3);
     font-weight: 600;
 }
 
 .view-btn-admin.active:hover {
     background: var(--primary-dark);
+    border-color: var(--primary-dark);
 }
 
 .menu-add-btn-centered {

@@ -27,6 +27,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update dashboard on load if already authenticated
     if (sessionStorage.getItem('adminAuthenticated') === 'true') {
         console.log('✅ Already authenticated, loading dashboard...');
+        
+        // Show dashboard panel and hide password modal
+        const passwordModal = document.getElementById('password-modal');
+        const salesReportPanel = document.getElementById('sales-report-panel');
+        if (passwordModal) {
+            passwordModal.classList.add('hidden');
+        }
+        if (salesReportPanel) {
+            salesReportPanel.classList.remove('hidden');
+        }
+        
         // First try to load data if not already loaded
         if ((typeof salesData === 'undefined' || !salesData || !salesData.transactions || salesData.transactions.length === 0) &&
             (typeof window.salesData === 'undefined' || !window.salesData || !window.salesData.transactions || window.salesData.transactions.length === 0)) {

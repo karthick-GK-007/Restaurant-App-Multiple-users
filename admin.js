@@ -1492,6 +1492,67 @@ function setupEventListeners() {
         });
     }
     
+    // Hamburger Menu Toggle
+    const hamburgerBtn = document.getElementById('admin-hamburger-btn');
+    const hamburgerDropdown = document.getElementById('admin-hamburger-dropdown');
+    
+    if (hamburgerBtn && hamburgerDropdown) {
+        hamburgerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hamburgerDropdown.classList.toggle('hidden');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburgerBtn.contains(e.target) && !hamburgerDropdown.contains(e.target)) {
+                hamburgerDropdown.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Navigation: Back to Restaurant
+    const navBackToRestaurant = document.getElementById('nav-back-to-restaurant');
+    if (navBackToRestaurant) {
+        navBackToRestaurant.addEventListener('click', (e) => {
+            e.preventDefault();
+            hamburgerDropdown.classList.add('hidden');
+            
+            // Navigate to user page for current branch: /kagzso/user/{hotel_name}/{branch_slug}/
+            const currentBranch = allBranches.find(b => b.id === selectedAdminBranchId);
+            if (currentBranch) {
+                const branchUrl = currentBranch.userUrl ? '/' + currentBranch.userUrl : null;
+                if (branchUrl) {
+                    window.location.href = branchUrl;
+                } else {
+                    // Fallback: construct URL from hotel name and branch slug
+                    const hotelName = currentBranch.hotelName 
+                        ? String(currentBranch.hotelName).toLowerCase().replace(/\s+/g, '-')
+                        : selectedHotelId;
+                    const branchSlug = currentBranch.slug || currentBranch.id;
+                    window.location.href = `/kagzso/user/${hotelName}/${branchSlug}`;
+                }
+            } else {
+                // Fallback: go to index.html
+                window.location.href = '/index.html';
+            }
+        });
+    }
+    
+    // Navigation: Dashboard
+    const navDashboard = document.getElementById('nav-dashboard');
+    if (navDashboard) {
+        navDashboard.addEventListener('click', (e) => {
+            e.preventDefault();
+            hamburgerDropdown.classList.add('hidden');
+            
+            // Ensure admin authentication is set for premium dashboard
+            sessionStorage.setItem('adminAuthenticated', 'true');
+            
+            // Navigate to premium dashboard
+            window.location.href = '/premium-dashboard.html';
+        });
+    }
+    
     const backToRestaurantBtn = document.getElementById('back-to-restaurant-btn');
     if (backToRestaurantBtn) {
         backToRestaurantBtn.addEventListener('click', () => {
@@ -2943,10 +3004,55 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
     newItem.showTaxOnBill = true;
     newItem.gst = gstConfig;
     
-    // Save to Google Sheets
+    // Helper function to check if we're actually offline
+    const isActuallyOffline = () => {
+        // Check navigator.onLine first
+        if (!navigator.onLine) {
+            return true;
+        }
+        // Also check if we can reach Supabase (quick connectivity test)
+        // This is a best-effort check - we'll still try the actual save
+        return false;
+    };
+    
+    // Helper function to check if error is a network error
+    const isNetworkError = (error) => {
+        if (!error) return false;
+        const errorMessage = String(error.message || error).toLowerCase();
+        const errorCode = String(error.code || '').toLowerCase();
+        return (
+            errorMessage.includes('network') ||
+            errorMessage.includes('fetch') ||
+            errorMessage.includes('timeout') ||
+            errorMessage.includes('failed to fetch') ||
+            errorMessage.includes('networkerror') ||
+            errorCode === 'network_error' ||
+            errorCode === 'timeout'
+        );
+    };
+    
+    // Save to Supabase (or fallback API)
     try {
         showAdminLoader('Saving item...');
-        await apiService.saveMenuItem(newItem);
+        
+        // Use supabaseApi (preferred) or fallback to window.apiService
+        const api = supabaseApi || window.apiService;
+        if (!api) {
+            throw new Error('API service not available. Please check your Supabase configuration.');
+        }
+        
+        // Ensure API is initialized
+        if (api.initialize && typeof api.initialize === 'function') {
+            await api.initialize();
+        }
+        
+        // Attempt to save to database
+        const result = await api.saveMenuItem(newItem);
+        
+        if (!result || !result.success) {
+            throw new Error('Save operation failed: No success response from server');
+        }
+        
         hideAdminLoader();
         
         // Show success popup
@@ -2955,7 +3061,7 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
                 text: 'OK',
                 class: 'primary',
                 onClick: async () => {
-                    // Refresh menu from Google Sheets
+                    // Refresh menu from database
                     showAdminLoader('Refreshing menu...');
                     try {
                         await loadMenu();
@@ -2969,33 +3075,79 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
             }
         ]);
     } catch (error) {
-        console.error('Error saving to Google Sheets:', error);
+        console.error('Error saving item:', error);
         hideAdminLoader();
-        // Fallback to localStorage
-        if (itemId) {
-            const index = menuItems.findIndex(item => item.id === parseInt(itemId));
-            if (index !== -1) {
-                menuItems[index] = { ...menuItems[index], ...newItem };
+        
+        // Only fallback to localStorage if we're actually offline or it's a network error
+        const isOffline = isActuallyOffline() || isNetworkError(error);
+        
+        if (isOffline) {
+            // Network is down - save locally for sync later
+            console.log('📴 Network unavailable - saving locally for later sync');
+            if (itemId) {
+                const index = menuItems.findIndex(item => 
+                    String(item.id) === String(itemId) && 
+                    String(item.branchId || item.branch_id) === String(branchId)
+                );
+                if (index !== -1) {
+                    menuItems[index] = { ...menuItems[index], ...newItem };
+                } else {
+                    // Item not found in local cache - add it
+                    menuItems.push(newItem);
+                }
             } else {
-                showAdminPopup('error', 'Error', 'Item not found. Cannot update.', [
-                    { text: 'OK', class: 'primary' }
-                ]);
-                return;
+                menuItems.push(newItem);
             }
+            await saveMenu();
+            showAdminPopup('info', 'Saved Locally', itemId ? 'Item updated locally (will sync when online)!' : 'Item added locally (will sync when online)!', [
+                {
+                    text: 'OK',
+                    class: 'primary',
+                    onClick: async () => {
+                        await loadMenu();
+                        renderMenuItems();
+                    }
+                }
+            ]);
         } else {
-            menuItems.push(newItem);
-        }
-        await saveMenu();
-        showAdminPopup('info', 'Saved Locally', itemId ? 'Item updated locally (will sync when online)!' : 'Item added locally (will sync when online)!', [
-            {
-                text: 'OK',
-                class: 'primary',
-                onClick: async () => {
-                    await loadMenu();
-                    renderMenuItems();
+            // Online but error occurred - show error message
+            const errorMsg = error.message || String(error) || 'Unknown error occurred';
+            console.error('❌ Online save failed:', errorMsg);
+            
+            // For update operations, check if item exists in database
+            if (itemId) {
+                // Try to find the item in the current menu to see if it exists
+                const existingItem = menuItems.find(item => 
+                    String(item.id) === String(itemId) && 
+                    String(item.branchId || item.branch_id) === String(branchId)
+                );
+                
+                if (!existingItem) {
+                    showAdminPopup('error', 'Error', `Item not found. Cannot update. The item may have been deleted or the ID is incorrect.`, [
+                        { text: 'OK', class: 'primary' }
+                    ]);
+                    return;
                 }
             }
-        ]);
+            
+            // Show error with retry option
+            showAdminPopup('error', 'Error', `Failed to save item: ${errorMsg}. Please check your connection and try again.`, [
+                {
+                    text: 'Cancel',
+                    class: 'secondary',
+                    onClick: () => {}
+                },
+                {
+                    text: 'Retry',
+                    class: 'primary',
+                    onClick: async () => {
+                        // Retry saving
+                        await saveItem(itemId, branchId, itemName, itemCategory, itemAvailability, imagePath, hasSizes);
+                    }
+                }
+            ]);
+            return; // Don't close modal on error
+        }
     }
     
     closeItemModal();
@@ -3018,6 +3170,23 @@ function editItem(id, branchId) {
 async function deleteItem(id, branchId) {
     const normalizedId = String(id);
     const normalizedBranchId = String(branchId);
+    
+    // Helper function to check if error is a network error
+    const isNetworkError = (error) => {
+        if (!error) return false;
+        const errorMessage = String(error.message || error).toLowerCase();
+        const errorCode = String(error.code || '').toLowerCase();
+        return (
+            errorMessage.includes('network') ||
+            errorMessage.includes('fetch') ||
+            errorMessage.includes('timeout') ||
+            errorMessage.includes('failed to fetch') ||
+            errorMessage.includes('networkerror') ||
+            errorCode === 'network_error' ||
+            errorCode === 'timeout'
+        );
+    };
+    
     // Show confirmation popup
     showAdminPopup('info', 'Confirm Delete', 'Are you sure you want to delete this item?', [
         {
@@ -3031,8 +3200,20 @@ async function deleteItem(id, branchId) {
             onClick: async () => {
                 try {
                     showAdminLoader('Deleting item...');
-                    // Delete from Google Sheets
-                    await apiService.deleteMenuItem(normalizedId, normalizedBranchId);
+                    
+                    // Use supabaseApi (preferred) or fallback to window.apiService
+                    const api = supabaseApi || window.apiService;
+                    if (!api) {
+                        throw new Error('API service not available. Please check your Supabase configuration.');
+                    }
+                    
+                    // Ensure API is initialized
+                    if (api.initialize && typeof api.initialize === 'function') {
+                        await api.initialize();
+                    }
+                    
+                    // Delete from database
+                    await api.deleteMenuItem(normalizedId, normalizedBranchId);
                     hideAdminLoader();
                     
                     // Show success popup
@@ -3041,7 +3222,7 @@ async function deleteItem(id, branchId) {
                             text: 'OK',
                             class: 'primary',
                             onClick: async () => {
-                                // Refresh menu from Google Sheets
+                                // Refresh menu from database
                                 showAdminLoader('Refreshing menu...');
                                 try {
                                     await loadMenu();
@@ -3055,21 +3236,47 @@ async function deleteItem(id, branchId) {
                         }
                     ]);
                 } catch (error) {
-                    console.error('Error deleting from Google Sheets:', error);
+                    console.error('Error deleting item:', error);
                     hideAdminLoader();
-                    // Fallback to localStorage
-                    menuItems = menuItems.filter(item => !(String(item.id) == normalizedId && String(item.branchId || item.branch_id) == normalizedBranchId));
-                    await saveMenu();
-                    showAdminPopup('info', 'Deleted Locally', 'Item deleted locally (will sync when online)!', [
-                        {
-                            text: 'OK',
-                            class: 'primary',
-                            onClick: async () => {
-                                await loadMenu();
-                                renderMenuItems();
+                    
+                    // Only fallback to localStorage if we're actually offline or it's a network error
+                    const isOffline = !navigator.onLine || isNetworkError(error);
+                    
+                    if (isOffline) {
+                        // Network is down - delete locally for sync later
+                        console.log('📴 Network unavailable - deleting locally for later sync');
+                        menuItems = menuItems.filter(item => !(String(item.id) == normalizedId && String(item.branchId || item.branch_id) == normalizedBranchId));
+                        await saveMenu();
+                        showAdminPopup('info', 'Deleted Locally', 'Item deleted locally (will sync when online)!', [
+                            {
+                                text: 'OK',
+                                class: 'primary',
+                                onClick: async () => {
+                                    await loadMenu();
+                                    renderMenuItems();
+                                }
                             }
-                        }
-                    ]);
+                        ]);
+                    } else {
+                        // Online but error occurred - show error message with retry
+                        const errorMsg = error.message || String(error) || 'Unknown error occurred';
+                        console.error('❌ Online delete failed:', errorMsg);
+                        showAdminPopup('error', 'Error', `Failed to delete item: ${errorMsg}. Please check your connection and try again.`, [
+                            {
+                                text: 'Cancel',
+                                class: 'secondary',
+                                onClick: () => {}
+                            },
+                            {
+                                text: 'Retry',
+                                class: 'primary',
+                                onClick: async () => {
+                                    // Retry deleting
+                                    await deleteItem(id, branchId);
+                                }
+                            }
+                        ]);
+                    }
                 }
             }
         }

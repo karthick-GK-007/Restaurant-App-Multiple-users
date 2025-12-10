@@ -425,24 +425,43 @@ function formatISTDate(date) {
 // Load restaurant title from Supabase Config
 async function loadRestaurantTitle() {
     try {
+        // Use supabaseApi (preferred) or fallback to window.apiService
+        const api = supabaseApi || window.apiService;
+        if (!api) {
+            console.warn('⚠️ No API service available for loading restaurant title');
+            return;
+        }
+        
         // Wait for API service to be initialized
-        if (!apiService.configLoaded) {
-            await apiService.initialize();
+        if (api.initialize && typeof api.initialize === 'function') {
+            try {
+                await api.initialize();
+            } catch (initError) {
+                console.warn('⚠️ API initialization error:', initError);
+            }
         }
         
         // Try to get config from Supabase
         try {
-            const title = await apiService.getConfig('restaurant_title');
-            if (title) {
-                restaurantTitle = title; // Store in global variable
-                const titleElement = document.getElementById('restaurant-title');
-                if (titleElement) {
-                    titleElement.textContent = title;
+            if (api.getConfig && typeof api.getConfig === 'function') {
+                const title = await api.getConfig('restaurant_title');
+                if (title) {
+                    restaurantTitle = title; // Store in global variable
+                    const titleElement = document.getElementById('restaurant-title');
+                    if (titleElement) {
+                        // Update the span inside the h1, not the h1 itself
+                        const spanElement = titleElement.querySelector('span');
+                        if (spanElement) {
+                            spanElement.textContent = title;
+                        } else {
+                            titleElement.textContent = title;
+                        }
+                    }
+                    // Update page title
+                    document.title = `${title} - Menu & Billing`;
+                    console.log('✅ Restaurant title loaded from Supabase Config:', title);
+                    return;
                 }
-                // Update page title
-                document.title = `${title} - Menu & Billing`;
-                console.log('✅ Restaurant title loaded from Supabase Config:', title);
-                return;
             }
         } catch (e) {
             console.warn('Could not load restaurant title from Supabase Config:', e);

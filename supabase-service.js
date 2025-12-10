@@ -569,35 +569,102 @@ class SupabaseAPI {
 
     async saveMenuItem(item) {
         const client = await this.ensureClient();
-        let branchName = item.branchName;
-        if (!branchName && item.branchId) {
-            const { data: branchData } = await client
-                .from('branches')
-                .select('name')
-                .eq('id', item.branchId)
-                .single();
-            branchName = branchData?.name || '';
+        
+        // Normalize IDs to strings for consistent comparison
+        const itemId = String(item.id || '');
+        const branchId = String(item.branchId || item.branch_id || '');
+        
+        if (!itemId) {
+            throw new Error('Item ID is required');
         }
+        if (!branchId) {
+            throw new Error('Branch ID is required');
+        }
+        
+        let branchName = item.branchName;
+        if (!branchName && branchId) {
+            try {
+                const { data: branchData } = await client
+                    .from('branches')
+                    .select('name')
+                    .eq('id', branchId)
+                    .maybeSingle();
+                branchName = branchData?.name || '';
+            } catch (error) {
+                console.warn('Could not fetch branch name:', error);
+                branchName = '';
+            }
+        }
+        
         const payload = this.prepareMenuItemPayload({ ...item, branchName });
-        const { data: existing } = await client
-            .from('menu_items')
-            .select('id')
-            .eq('id', item.id)
-            .eq('branch_id', item.branchId)
-            .maybeSingle();
+        
+        // Check if item exists - try both string and numeric ID matching
+        let existing = null;
+        try {
+            // First try with the exact ID (as string)
+            const { data: existingData, error: checkError } = await client
+                .from('menu_items')
+                .select('id, branch_id')
+                .eq('id', itemId)
+                .eq('branch_id', branchId)
+                .maybeSingle();
+            
+            if (checkError && checkError.code !== 'PGRST116') {
+                // PGRST116 is "not found" which is fine, but other errors should be logged
+                console.warn('Error checking for existing item:', checkError);
+            }
+            
+            existing = existingData;
+            
+            // If not found, try with numeric ID (in case database stores as integer)
+            if (!existing && !isNaN(parseInt(itemId))) {
+                const { data: existingNumeric } = await client
+                    .from('menu_items')
+                    .select('id, branch_id')
+                    .eq('id', parseInt(itemId))
+                    .eq('branch_id', branchId)
+                    .maybeSingle();
+                existing = existingNumeric;
+            }
+        } catch (error) {
+            console.warn('Error checking for existing item:', error);
+            // Continue with insert attempt if check fails
+        }
 
         let result;
         if (existing) {
+            // Update existing item
+            console.log(`🔄 Updating existing item: id=${itemId}, branch_id=${branchId}`);
             const { data, error } = await client
                 .from('menu_items')
                 .update(payload)
-                .eq('id', item.id)
-                .eq('branch_id', item.branchId)
+                .eq('id', itemId)
+                .eq('branch_id', branchId)
                 .select()
                 .single();
-            if (error) throw error;
-            result = { success: true, data };
+            
+            if (error) {
+                // If update fails with exact match, try numeric ID
+                if (error.code === 'PGRST116' && !isNaN(parseInt(itemId))) {
+                    console.log('🔄 Retrying update with numeric ID');
+                    const { data: retryData, error: retryError } = await client
+                        .from('menu_items')
+                        .update(payload)
+                        .eq('id', parseInt(itemId))
+                        .eq('branch_id', branchId)
+                        .select()
+                        .single();
+                    if (retryError) throw retryError;
+                    result = { success: true, data: retryData };
+                } else {
+                    throw error;
+                }
+            } else {
+                result = { success: true, data };
+            }
         } else {
+            // Insert new item
+            console.log(`➕ Inserting new item: id=${itemId}, branch_id=${branchId}`);
             const { data, error } = await client
                 .from('menu_items')
                 .insert(payload)
@@ -607,9 +674,16 @@ class SupabaseAPI {
             result = { success: true, data };
         }
 
-        if (item.branchId) {
-            this.cache.delete(`menu_${item.branchId}`);
+        // Clear cache for this branch
+        if (branchId) {
+            this.cache.delete(`menu_${branchId}`);
+            // Also clear hotel-specific cache if hotel_id is available
+            if (item.hotelId || item.hotel_id) {
+                const hotelId = String(item.hotelId || item.hotel_id);
+                this.cache.delete(`menu_${hotelId}_${branchId}`);
+            }
         }
+        
         return result;
     }
 
@@ -939,10 +1013,33 @@ class SupabaseAPI {
         for (const identifier of uniqueIdentifiers) {
             try {
                 console.log(`🔍 Attempting verification with identifier: "${identifier}"`);
-                const { data, error } = await client.rpc('verify_hotel_admin_password', {
-                    p_hotel_identifier: identifier,
-                    p_password: trimmedPassword
-                });
+                
+                // Try the original function first
+                let data, error;
+                try {
+                    const result = await client.rpc('verify_hotel_admin_password', {
+                        p_hotel_identifier: identifier,
+                        p_password: trimmedPassword
+                    });
+                    data = result.data;
+                    error = result.error;
+                } catch (rpcError) {
+                    // If RPC fails, try the workaround function
+                    console.log(`⚠️ Original RPC failed, trying workaround function...`);
+                    try {
+                        const workaroundResult = await client.rpc('check_hotel_password', {
+                            hotel_identifier: identifier,
+                            password_to_check: trimmedPassword
+                        });
+                        if (workaroundResult.data && workaroundResult.data.valid === true) {
+                            console.log(`✅ Password verified via workaround function with identifier: "${identifier}"`);
+                            return true;
+                        }
+                        error = workaroundResult.error || new Error('Workaround function returned invalid');
+                    } catch (workaroundError) {
+                        error = rpcError; // Use original error
+                    }
+                }
                 
                 console.log(`🔍 RPC response for "${identifier}":`, { data, error: error ? error.message : null });
                 

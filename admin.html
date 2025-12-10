@@ -60,6 +60,24 @@
     <div id="admin-panel" class="admin-panel hidden">
         <header>
             <div class="admin-header-banner-container">
+                <!-- Hamburger Menu -->
+                <div class="admin-hamburger-menu-container">
+                    <button id="admin-hamburger-btn" class="admin-hamburger-btn" aria-label="Menu">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <div id="admin-hamburger-dropdown" class="admin-hamburger-dropdown hidden">
+                        <a href="#" id="nav-back-to-restaurant" class="admin-hamburger-item">
+                            <span class="admin-hamburger-icon">🍽️</span>
+                            <span class="admin-hamburger-text">Back to Restaurant</span>
+                        </a>
+                        <a href="#" id="nav-dashboard" class="admin-hamburger-item">
+                            <span class="admin-hamburger-icon">📊</span>
+                            <span class="admin-hamburger-text">Dashboard</span>
+                        </a>
+                    </div>
+                </div>
                 <!-- BANNER BLOCK -->
                 <div id="admin-banner-block" class="admin-banner-block-new rounded-xl shadow-sm p-6 mb-4 text-center">
                     <h1 id="restaurant-title-admin-header" class="text-2xl font-bold tracking-wide mb-1 collapsible-header" style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;" data-target="admin-banner-content,admin-under-banner-content">

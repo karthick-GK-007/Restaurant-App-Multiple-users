@@ -439,9 +439,21 @@ class SupabaseAPI {
     }
 
     async ensureClient() {
+        // If client already exists, return it
+        if (this.supabaseClient) {
+            return this.supabaseClient;
+        }
+        
+        // Try to initialize
         const client = await this.initialize();
         if (!client) {
-            throw new Error('Supabase client not initialized');
+            // Try one more time with a delay (in case config is loading)
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const retryClient = await this.initialize();
+            if (!retryClient) {
+                throw new Error('Supabase client not initialized. Please check your Supabase configuration.');
+            }
+            return retryClient;
         }
         return client;
     }

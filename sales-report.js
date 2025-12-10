@@ -185,6 +185,21 @@ function setupPasswordAuth() {
         loginBtn.removeAttribute('disabled');
     }
     
+    // Add toggle password visibility
+    const togglePasswordBtn = document.getElementById('toggle-password');
+    if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            const eyeIcon = togglePasswordBtn.querySelector('.eye-icon');
+            if (eyeIcon) {
+                eyeIcon.textContent = type === 'password' ? '👁️' : '🙈';
+            }
+        });
+    }
+    
     loginBtn.addEventListener('click', async () => {
         const enteredPassword = passwordInput.value.trim();
         
@@ -284,9 +299,33 @@ function setupPasswordAuth() {
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'Verifying...';
                 
-                // Ensure API is initialized
+                // Ensure API is initialized - try multiple times if needed
                 if (api.initialize && typeof api.initialize === 'function') {
-                    await api.initialize();
+                    let initAttempts = 0;
+                    let initialized = false;
+                    while (initAttempts < 3 && !initialized) {
+                        try {
+                            await api.initialize();
+                            // Verify client is actually ready
+                            if (api.ensureClient) {
+                                await api.ensureClient();
+                                initialized = true;
+                            } else {
+                                initialized = true; // If no ensureClient, assume initialized
+                            }
+                        } catch (initError) {
+                            initAttempts++;
+                            if (initAttempts >= 3) {
+                                throw new Error('Failed to initialize Supabase client after multiple attempts');
+                            }
+                            // Wait a bit before retrying
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
+                    
+                    if (!initialized) {
+                        throw new Error('Supabase client could not be initialized');
+                    }
                 }
                 
                 // Verify password using Supabase

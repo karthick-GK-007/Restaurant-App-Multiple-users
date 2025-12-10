@@ -1250,53 +1250,43 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
         }
         
         // Filter by date - normalize both transaction date and filter dates
+        // STRICT: Both fromDate and toDate must be valid for filtering to work
         if (fromDate || toDate) {
             const transDate = t.date || t.dateTime || '';
             if (!transDate) {
-                console.log('⚠️ Transaction missing date:', t.id);
                 return false; // Skip transactions without date
             }
             
             const normalizedTransDate = normalizeDateForComparison(transDate);
             
+            // Validate normalized date is in YYYY-MM-DD format
+            if (!normalizedTransDate || !normalizedTransDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                console.warn('⚠️ Could not normalize transaction date to YYYY-MM-DD:', transDate, '→', normalizedTransDate);
+                return false; // Skip if we can't normalize
+            }
+            
+            // Filter by fromDate (exclude dates before fromDate)
             if (fromDate) {
                 const normalizedFromDate = normalizeDateForComparison(fromDate);
-                console.log('📅 Date comparison (fromDate):', {
-                    transDate: transDate,
-                    normalizedTransDate: normalizedTransDate,
-                    fromDate: fromDate,
-                    normalizedFromDate: normalizedFromDate,
-                    comparison: normalizedTransDate < normalizedFromDate ? 'EXCLUDED' : 'INCLUDED'
-                });
-                if (normalizedTransDate && normalizedFromDate) {
-                    // Include transactions on the fromDate (use >=, not <)
-                    if (normalizedTransDate < normalizedFromDate) {
-                        return false;
-                    }
-                } else if (!normalizedTransDate) {
-                    // If we can't normalize transaction date, skip it
-                    console.warn('⚠️ Could not normalize transaction date:', transDate);
+                if (!normalizedFromDate || !normalizedFromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    console.warn('⚠️ Could not normalize fromDate to YYYY-MM-DD:', fromDate, '→', normalizedFromDate);
+                    return false; // Skip if we can't normalize filter date
+                }
+                // Exclude transactions before fromDate (strict: < means exclude)
+                if (normalizedTransDate < normalizedFromDate) {
                     return false;
                 }
             }
             
+            // Filter by toDate (exclude dates after toDate)
             if (toDate) {
                 const normalizedToDate = normalizeDateForComparison(toDate);
-                console.log('📅 Date comparison (toDate):', {
-                    transDate: transDate,
-                    normalizedTransDate: normalizedTransDate,
-                    toDate: toDate,
-                    normalizedToDate: normalizedToDate,
-                    comparison: normalizedTransDate > normalizedToDate ? 'EXCLUDED' : 'INCLUDED'
-                });
-                if (normalizedTransDate && normalizedToDate) {
-                    // Include transactions on the toDate (use <=, not >)
-                    if (normalizedTransDate > normalizedToDate) {
-                        return false;
-                    }
-                } else if (!normalizedTransDate) {
-                    // If we can't normalize transaction date, skip it
-                    console.warn('⚠️ Could not normalize transaction date:', transDate);
+                if (!normalizedToDate || !normalizedToDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    console.warn('⚠️ Could not normalize toDate to YYYY-MM-DD:', toDate, '→', normalizedToDate);
+                    return false; // Skip if we can't normalize filter date
+                }
+                // Exclude transactions after toDate (strict: > means exclude)
+                if (normalizedTransDate > normalizedToDate) {
                     return false;
                 }
             }

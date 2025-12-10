@@ -1124,9 +1124,19 @@ async function applySalesFilters() {
             filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
         }
     } else {
-        // Client-side filtering (when no API)
-        console.log('🔄 Using client-side filtering...');
+        // Client-side filtering (when no API or when dates are provided)
+        console.log('🔄 Using client-side filtering (no API or date filters provided)...');
+        if (allTransactions.length > 0) {
+            filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
+        }
+    }
+    
+    // IMPORTANT: If we have date filters but no results, always run client-side filtering
+    // This handles cases where API filtering fails or dates are in different formats
+    if ((fromDate || toDate) && filteredTransactions.length === 0 && allTransactions.length > 0) {
+        console.log('🔄 Date filters applied but no results - running client-side filter to handle mixed date formats...');
         filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
+        console.log(`✅ Client-side filtering (retry) returned ${filteredTransactions.length} transactions`);
     }
     
     console.log(`✅ Filtered to ${filteredTransactions.length} transactions`);

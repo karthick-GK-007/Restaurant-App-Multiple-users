@@ -1090,18 +1090,24 @@ async function applySalesFilters() {
                     branchName: filteredTransactions[0].branchName,
                     total: filteredTransactions[0].total
                 });
-            } else if (allTransactions.length > 0) {
-                console.warn('⚠️ API returned 0 transactions but we have', allTransactions.length, 'total transactions');
+            } else {
+                // API returned empty or no results - always use client-side filtering
+                console.log('📅 API returned empty results, using client-side filtering...');
                 console.log('📅 Date filter details:', {
                     fromDate: apiFromDate,
                     toDate: apiToDate,
-                    sampleTransactionDate: allTransactions[0].date,
+                    fromDateInput: fromDate,
+                    toDateInput: toDate,
+                    totalTransactions: allTransactions.length,
+                    sampleTransactionDate: allTransactions.length > 0 ? allTransactions[0].date : 'N/A',
                     hotelId: hotelId
                 });
-                console.log('🔄 Trying client-side filtering as fallback...');
-                // Try client-side filtering as fallback
-                filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
-                console.log(`✅ Client-side filtering returned ${filteredTransactions.length} transactions`);
+                // Always use client-side filtering when we have transactions
+                if (allTransactions.length > 0) {
+                    filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
+                    console.log(`✅ Client-side filtering returned ${filteredTransactions.length} transactions`);
+                }
+            }
                 
                 // If client-side found results but API didn't, log the difference
                 if (filteredTransactions.length > 0) {
@@ -1150,6 +1156,7 @@ async function applySalesFilters() {
 }
 
 // Helper function to normalize date format for comparison
+// Handles both YYYY-MM-DD and DD/MM/YYYY formats (for backward compatibility)
 function normalizeDateForComparison(dateStr) {
     if (!dateStr) return '';
     
@@ -1159,26 +1166,31 @@ function normalizeDateForComparison(dateStr) {
     }
     
     // If in DD/MM/YYYY format (with or without time), convert to YYYY-MM-DD
-    // Handle formats like "23/11/2025" or "23/11/2025, 12:35 AM"
+    // Handle formats like "23/11/2025" or "23/11/2025, 12:35 AM" or "12/11/2025"
     const ddmmyyyyMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (ddmmyyyyMatch) {
         const [, day, month, year] = ddmmyyyyMatch;
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        const normalized = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        console.log(`📅 Normalized date: "${dateStr}" → "${normalized}"`);
+        return normalized;
     }
     
-    // Try to parse as Date object
+    // Try to parse as Date object (handles ISO strings, etc.)
     try {
         const dateObj = new Date(dateStr);
         if (!isNaN(dateObj.getTime())) {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            const normalized = `${year}-${month}-${day}`;
+            console.log(`📅 Parsed date: "${dateStr}" → "${normalized}"`);
+            return normalized;
         }
     } catch (e) {
-        console.warn('Could not parse date:', dateStr);
+        console.warn('⚠️ Could not parse date:', dateStr, e);
     }
     
+    console.warn('⚠️ Could not normalize date format:', dateStr);
     return dateStr;
 }
 

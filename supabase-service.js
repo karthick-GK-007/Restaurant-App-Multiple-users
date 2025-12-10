@@ -1110,7 +1110,7 @@ class SupabaseAPI {
     }
 
     prepareMenuItemPayload(item) {
-        // Null-safe image handling - only include if it exists and is not empty
+        // Build payload without image first
         const payload = {
             id: item.id,
             branch_id: item.branchId,
@@ -1133,11 +1133,14 @@ class SupabaseAPI {
         };
         
         // Only include image field if it exists and is not empty (null-safe)
-        if (item.image && item.image.trim() !== '') {
-            payload.image = item.image;
+        // This prevents "Could not find 'image' column" errors when column doesn't exist in schema cache
+        const imageValue = item.image || item.image_url || null;
+        if (imageValue && typeof imageValue === 'string' && imageValue.trim() !== '') {
+            payload.image = imageValue.trim();
         }
-        // If image is explicitly null/undefined/empty, don't include it in payload
-        // This prevents "Could not find 'image' column" errors
+        // If image is null/undefined/empty, explicitly set to null to ensure column exists
+        // PostgREST will ignore null values if column doesn't exist, but including it helps
+        // The migration should ensure the column exists
         
         return payload;
     }

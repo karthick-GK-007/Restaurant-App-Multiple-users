@@ -1331,6 +1331,7 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             
             // Validate normalized date is in YYYY-MM-DD format
             if (!normalizedTransDate || !normalizedTransDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                console.warn('⚠️ Could not normalize transaction date:', transDate, '→', normalizedTransDate);
                 return false; // Skip if we can't normalize
             }
             
@@ -1340,9 +1341,11 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             if (fromDate) {
                 const normalizedFromDate = normalizeDateForComparison(fromDate);
                 if (!normalizedFromDate || !normalizedFromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    console.warn('⚠️ Could not normalize fromDate:', fromDate, '→', normalizedFromDate);
                     return false; // Skip if we can't normalize filter date
                 }
                 // Exclude transactions before fromDate (strict: < means exclude)
+                // Use <= to include transactions on the fromDate
                 if (normalizedTransDate < normalizedFromDate) {
                     dateMatches = false;
                 }
@@ -1352,12 +1355,28 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             if (toDate && dateMatches) {
                 const normalizedToDate = normalizeDateForComparison(toDate);
                 if (!normalizedToDate || !normalizedToDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    console.warn('⚠️ Could not normalize toDate:', toDate, '→', normalizedToDate);
                     return false; // Skip if we can't normalize filter date
                 }
                 // Exclude transactions after toDate (strict: > means exclude)
+                // Use <= to include transactions on the toDate
                 if (normalizedTransDate > normalizedToDate) {
                     dateMatches = false;
                 }
+            }
+            
+            // Debug logging for first few transactions to help diagnose issues
+            if (transactions.indexOf(t) < 3) {
+                console.log('📅 Date filter check:', {
+                    transactionId: t.id,
+                    originalDate: transDate,
+                    normalizedTransDate: normalizedTransDate,
+                    fromDate: fromDate,
+                    normalizedFromDate: fromDate ? normalizeDateForComparison(fromDate) : null,
+                    toDate: toDate,
+                    normalizedToDate: toDate ? normalizeDateForComparison(toDate) : null,
+                    dateMatches: dateMatches
+                });
             }
             
             if (!dateMatches) {

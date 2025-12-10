@@ -1794,14 +1794,7 @@ function setupMenuInsightsFilters(allTransactions) {
             }
         }
         
-        console.log(`📊 Total transactions available: ${transactions.length}`);
-        
-        // Get hotel_id from sessionStorage - STRICT: Only show data for logged-in hotel
-        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
-        if (!hotelId) {
-            console.warn('⚠️ No hotel_id found for menu insights filters');
-            return;
-        }
+        console.log(`📊 Total transactions available (filtered by hotel): ${transactions.length}`);
         
         // Get filtered data - always filter, even if no filters are set (shows all)
         let filteredTransactions = [];

@@ -1218,13 +1218,21 @@ async function applySalesFilters() {
 }
 
 // Helper function to normalize date format for comparison
-// Handles both YYYY-MM-DD and DD/MM/YYYY formats (for backward compatibility)
+// Database stores dates in YYYY-MM-DD format (as per schema)
+// This function ensures all dates are normalized to YYYY-MM-DD for accurate comparison
 function normalizeDateForComparison(dateStr) {
     if (!dateStr) return '';
     
+    // Database format: YYYY-MM-DD (e.g., "2025-12-12")
     // If already in YYYY-MM-DD format, return as is
     if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return dateStr;
+    }
+    
+    // Handle timestamptz format: "2025-12-12 00:04:00+00" or "2025-12-12T00:04:00Z"
+    const timestampMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})[T\s]/);
+    if (timestampMatch) {
+        return timestampMatch[1]; // Extract YYYY-MM-DD part
     }
     
     // If in DD/MM/YYYY format (with or without time), convert to YYYY-MM-DD
@@ -1232,6 +1240,14 @@ function normalizeDateForComparison(dateStr) {
     const ddmmyyyyMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (ddmmyyyyMatch) {
         const [, day, month, year] = ddmmyyyyMatch;
+        const normalized = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        return normalized;
+    }
+    
+    // If in DD-MM-YYYY format, convert to YYYY-MM-DD
+    const ddmmyyyyDashMatch = dateStr.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+    if (ddmmyyyyDashMatch) {
+        const [, day, month, year] = ddmmyyyyDashMatch;
         const normalized = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         return normalized;
     }
@@ -1249,6 +1265,7 @@ function normalizeDateForComparison(dateStr) {
         // Silent fail - will return original string
     }
     
+    console.warn('⚠️ Could not normalize date format:', dateStr);
     return dateStr;
 }
 

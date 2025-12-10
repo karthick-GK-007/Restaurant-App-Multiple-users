@@ -1073,10 +1073,24 @@ async function applySalesFilters() {
             toDateDisplay: toDate ? formatDateForDisplay(toDate) : null,
             totalTransactions: allTransactions.length,
             sampleTransactionDate: allTransactions[0].date,
-            sampleTransactionDateDisplay: formatDateForDisplay(allTransactions[0].date)
+            sampleTransactionDateDisplay: formatDateForDisplay(allTransactions[0].date),
+            allTransactionDates: allTransactions.slice(0, 5).map(t => ({
+                id: t.id,
+                date: t.date,
+                dateDisplay: formatDateForDisplay(t.date)
+            }))
         });
         filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
         console.log(`✅ Client-side filtering returned ${filteredTransactions.length} transactions`);
+        if (filteredTransactions.length > 0) {
+            console.log('📊 Sample filtered transactions:', filteredTransactions.slice(0, 3).map(t => ({
+                id: t.id,
+                date: t.date,
+                dateDisplay: formatDateForDisplay(t.date)
+            })));
+        } else {
+            console.warn('⚠️ No transactions found after filtering. Check date formats and ranges.');
+        }
     } else if (typeof apiService !== 'undefined' && apiService.getSales) {
         try {
             console.log('📡 Fetching filtered data from API...', {

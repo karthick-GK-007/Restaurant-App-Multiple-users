@@ -780,6 +780,9 @@ class SupabaseAPI {
             }
         }
 
+        // Get items early to avoid "before initialization" error
+        const items = order.items || [];
+        
         const transactionData = {
             id: transactionId,
             hotel_id: finalHotelId,  // STRICT: Include hotel_id for multi-hotel support
@@ -826,8 +829,6 @@ class SupabaseAPI {
         }
         
         console.log('✅ Transaction saved successfully:', savedTransaction?.id || transactionId);
-
-        const items = order.items || [];
         if (items.length) {
             const payload = items.map(item => ({
                 transaction_id: transactionId,

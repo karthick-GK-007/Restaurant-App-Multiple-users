@@ -1022,9 +1022,20 @@ async function applySalesFilters() {
     const activeBranchBtn = document.querySelector('.branch-filter-btn.active');
     const selectedBranchId = activeBranchBtn?.getAttribute('data-branch-id') === 'all' ? null : activeBranchBtn?.getAttribute('data-branch-id');
     
+    // Validate date inputs are in correct format (YYYY-MM-DD)
+    // HTML date inputs should always return YYYY-MM-DD, but let's verify
+    if (fromDate && !fromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.error('❌ Invalid fromDate format:', fromDate, '- Expected YYYY-MM-DD');
+    }
+    if (toDate && !toDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.error('❌ Invalid toDate format:', toDate, '- Expected YYYY-MM-DD');
+    }
+    
     console.log('🔍 Applying sales filters:', { 
         fromDate, 
         toDate, 
+        fromDateType: typeof fromDate,
+        toDateType: typeof toDate,
         selectedBranchId,
         branchName: activeBranchBtn?.textContent?.trim()
     });

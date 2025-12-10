@@ -1106,16 +1106,15 @@ async function applySalesFilters() {
                 if (allTransactions.length > 0) {
                     filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
                     console.log(`✅ Client-side filtering returned ${filteredTransactions.length} transactions`);
-                }
-            }
-                
-                // If client-side found results but API didn't, log the difference
-                if (filteredTransactions.length > 0) {
-                    console.log('📊 Client-side found transactions that API missed. Sample:', {
-                        date: filteredTransactions[0].date,
-                        branchId: filteredTransactions[0].branchId,
-                        branchName: filteredTransactions[0].branchName
-                    });
+                    
+                    // If client-side found results but API didn't, log the difference
+                    if (filteredTransactions.length > 0) {
+                        console.log('📊 Client-side found transactions that API missed. Sample:', {
+                            date: filteredTransactions[0].date,
+                            branchId: filteredTransactions[0].branchId,
+                            branchName: filteredTransactions[0].branchName
+                        });
+                    }
                 }
             }
         } catch (e) {

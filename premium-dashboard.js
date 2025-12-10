@@ -1109,10 +1109,13 @@ async function applySalesFilters() {
                 console.log('📅 Date filter details:', {
                     fromDate: apiFromDate,
                     toDate: apiToDate,
+                    fromDateDisplay: apiFromDate ? formatDateForDisplay(apiFromDate) : null,
+                    toDateDisplay: apiToDate ? formatDateForDisplay(apiToDate) : null,
                     fromDateInput: fromDate,
                     toDateInput: toDate,
                     totalTransactions: allTransactions.length,
                     sampleTransactionDate: allTransactions.length > 0 ? allTransactions[0].date : 'N/A',
+                    sampleTransactionDateDisplay: allTransactions.length > 0 ? formatDateForDisplay(allTransactions[0].date) : 'N/A',
                     hotelId: hotelId
                 });
                 // Always use client-side filtering when we have transactions
@@ -1124,8 +1127,15 @@ async function applySalesFilters() {
                     if (filteredTransactions.length > 0) {
                         console.log('📊 Client-side found transactions that API missed. Sample:', {
                             date: filteredTransactions[0].date,
+                            dateDisplay: formatDateForDisplay(filteredTransactions[0].date),
                             branchId: filteredTransactions[0].branchId,
                             branchName: filteredTransactions[0].branchName
+                        });
+                    } else {
+                        console.warn('⚠️ Client-side filtering also returned 0 results. Check date formats:', {
+                            filterFrom: fromDate,
+                            filterTo: toDate,
+                            sampleTransDate: allTransactions[0].date
                         });
                     }
                 }
@@ -1305,34 +1315,37 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
             
             // Validate normalized date is in YYYY-MM-DD format
             if (!normalizedTransDate || !normalizedTransDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                console.warn('⚠️ Could not normalize transaction date to YYYY-MM-DD:', transDate, '→', normalizedTransDate);
                 return false; // Skip if we can't normalize
             }
+            
+            let dateMatches = true;
             
             // Filter by fromDate (exclude dates before fromDate)
             if (fromDate) {
                 const normalizedFromDate = normalizeDateForComparison(fromDate);
                 if (!normalizedFromDate || !normalizedFromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    console.warn('⚠️ Could not normalize fromDate to YYYY-MM-DD:', fromDate, '→', normalizedFromDate);
                     return false; // Skip if we can't normalize filter date
                 }
                 // Exclude transactions before fromDate (strict: < means exclude)
                 if (normalizedTransDate < normalizedFromDate) {
-                    return false;
+                    dateMatches = false;
                 }
             }
             
             // Filter by toDate (exclude dates after toDate)
-            if (toDate) {
+            if (toDate && dateMatches) {
                 const normalizedToDate = normalizeDateForComparison(toDate);
                 if (!normalizedToDate || !normalizedToDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    console.warn('⚠️ Could not normalize toDate to YYYY-MM-DD:', toDate, '→', normalizedToDate);
                     return false; // Skip if we can't normalize filter date
                 }
                 // Exclude transactions after toDate (strict: > means exclude)
                 if (normalizedTransDate > normalizedToDate) {
-                    return false;
+                    dateMatches = false;
                 }
+            }
+            
+            if (!dateMatches) {
+                return false;
             }
         }
         

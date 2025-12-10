@@ -547,49 +547,84 @@ async function loadSalesData() {
             await apiService.initialize();
         }
         
-        // Get hotel_id from sessionStorage (set during login)
+        // STRICT: Get hotel_id from sessionStorage (set during login) - REQUIRED
         const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
         if (!hotelId) {
-            console.warn('⚠️ No hotel_id found in sessionStorage. Dashboard will show no data.');
+            console.error('❌ CRITICAL: No hotel_id found in sessionStorage. Dashboard will show NO data for security.');
             salesData = { transactions: [] };
             window.salesData = { transactions: [] };
             return;
         }
         
-        console.log('🔒 Loading sales data for hotel_id:', hotelId);
+        console.log('🔒 STRICT: Loading sales data ONLY for hotel_id:', hotelId);
         
-        // Load sales data filtered by hotel_id
-        // Note: getSales requires branchId, but we want all branches for the hotel
-        // So we'll fetch all transactions and filter client-side, or use fetchSales directly
+        // STRICT: Load sales data filtered by hotel_id ONLY
+        // We MUST fetch by hotel_id to ensure tenant isolation
         const api = window.supabaseApi || window.apiService;
         let allTransactions = [];
         
-        // Try to get all branches for this hotel first
+        // Get all branches for this hotel first (required for fetching transactions)
         try {
             const client = await api.ensureClient();
-            const { data: branches } = await client
+            const { data: branches, error: branchesError } = await client
                 .from('branches')
-                .select('id')
-                .eq('hotel_id', hotelId);
+                .select('id, hotel_id')
+                .eq('hotel_id', hotelId);  // STRICT: Only branches for this hotel
             
-            if (branches && branches.length > 0) {
-                // Fetch transactions for all branches of this hotel
-                for (const branch of branches) {
-                    try {
-                        const branchTransactions = await api.fetchSales({ 
-                            hotelId: hotelId, 
-                            branchId: branch.id 
-                        });
-                        allTransactions = allTransactions.concat(branchTransactions);
-                    } catch (e) {
-                        console.warn(`Could not fetch transactions for branch ${branch.id}:`, e);
-                    }
-                }
-            } else {
+            if (branchesError) {
+                console.error('❌ Error fetching branches:', branchesError);
+                throw branchesError;
+            }
+            
+            if (!branches || branches.length === 0) {
                 console.warn('⚠️ No branches found for hotel_id:', hotelId);
+                salesData = { transactions: [] };
+                window.salesData = { transactions: [] };
+                return;
+            }
+            
+            console.log(`🔒 Found ${branches.length} branches for hotel ${hotelId}`);
+            
+            // STRICT: Fetch transactions for each branch, ALWAYS passing hotelId
+            for (const branch of branches) {
+                // Double-check branch belongs to this hotel (defense in depth)
+                if (branch.hotel_id && String(branch.hotel_id) !== String(hotelId)) {
+                    console.warn(`⚠️ Branch ${branch.id} belongs to different hotel (${branch.hotel_id}), skipping`);
+                    continue;
+                }
+                
+                try {
+                    const branchTransactions = await api.fetchSales({ 
+                        hotelId: hotelId,  // STRICT: Always pass hotelId
+                        branchId: branch.id 
+                    });
+                    
+                    // STRICT: Double-check each transaction has correct hotel_id
+                    const validTransactions = branchTransactions.filter(t => {
+                        const tHotelId = t.hotel_id || t.hotelId;
+                        if (!tHotelId) {
+                            console.warn('⚠️ Transaction missing hotel_id:', t.id);
+                            return false;
+                        }
+                        if (String(tHotelId) !== String(hotelId)) {
+                            console.warn(`⚠️ Transaction ${t.id} has wrong hotel_id (${tHotelId}), expected ${hotelId}`);
+                            return false;
+                        }
+                        return true;
+                    });
+                    
+                    allTransactions = allTransactions.concat(validTransactions);
+                    console.log(`✅ Loaded ${validTransactions.length} transactions for branch ${branch.id}`);
+                } catch (e) {
+                    console.error(`❌ Error fetching transactions for branch ${branch.id}:`, e);
+                }
             }
         } catch (e) {
-            console.error('Error fetching hotel transactions:', e);
+            console.error('❌ CRITICAL: Error fetching hotel transactions:', e);
+            // Don't fall back to loading all data - return empty for security
+            salesData = { transactions: [] };
+            window.salesData = { transactions: [] };
+            return;
         }
         
         salesData = { transactions: allTransactions };

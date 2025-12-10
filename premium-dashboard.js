@@ -776,12 +776,25 @@ async function loadSalesPage() {
         }
     }
     
-    // Get branches for filtering
+    // STRICT: Get branches for filtering - ONLY for logged-in hotel
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
     let branches = [];
-    if (typeof apiService !== 'undefined' && apiService.getBranches) {
+    if (typeof apiService !== 'undefined') {
         try {
-            const branchesResponse = await apiService.getBranches();
-            branches = branchesResponse.branches || [];
+            // Use fetchBranches with hotelId filter if available
+            if (apiService.fetchBranches && hotelId) {
+                branches = await apiService.fetchBranches({ hotelId: hotelId, useCache: true });
+            } else if (apiService.getBranches) {
+                const branchesResponse = await apiService.getBranches();
+                branches = branchesResponse.branches || [];
+                // STRICT: Filter by hotel_id client-side if not filtered server-side
+                if (hotelId && branches.length > 0) {
+                    branches = branches.filter(b => {
+                        const bHotelId = b.hotel_id || b.hotelId;
+                        return bHotelId && String(bHotelId) === String(hotelId);
+                    });
+                }
+            }
         } catch (e) {
             console.warn('Could not load branches:', e);
         }
@@ -1404,12 +1417,25 @@ async function loadMenuInsightsPage() {
         }
     }
     
-    // Get branches for filtering
+    // STRICT: Get branches for filtering - ONLY for logged-in hotel
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
     let branches = [];
-    if (typeof apiService !== 'undefined' && apiService.getBranches) {
+    if (typeof apiService !== 'undefined') {
         try {
-            const branchesResponse = await apiService.getBranches();
-            branches = branchesResponse.branches || [];
+            // Use fetchBranches with hotelId filter if available
+            if (apiService.fetchBranches && hotelId) {
+                branches = await apiService.fetchBranches({ hotelId: hotelId, useCache: true });
+            } else if (apiService.getBranches) {
+                const branchesResponse = await apiService.getBranches();
+                branches = branchesResponse.branches || [];
+                // STRICT: Filter by hotel_id client-side if not filtered server-side
+                if (hotelId && branches.length > 0) {
+                    branches = branches.filter(b => {
+                        const bHotelId = b.hotel_id || b.hotelId;
+                        return bHotelId && String(bHotelId) === String(hotelId);
+                    });
+                }
+            }
         } catch (e) {
             console.warn('Could not load branches:', e);
         }
@@ -1489,12 +1515,25 @@ async function loadBranchInsightsPage() {
         }
     }
     
-    // Get branches for filtering
+    // STRICT: Get branches for filtering - ONLY for logged-in hotel
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
     let branches = [];
-    if (typeof apiService !== 'undefined' && apiService.getBranches) {
+    if (typeof apiService !== 'undefined') {
         try {
-            const branchesResponse = await apiService.getBranches();
-            branches = branchesResponse.branches || [];
+            // Use fetchBranches with hotelId filter if available
+            if (apiService.fetchBranches && hotelId) {
+                branches = await apiService.fetchBranches({ hotelId: hotelId, useCache: true });
+            } else if (apiService.getBranches) {
+                const branchesResponse = await apiService.getBranches();
+                branches = branchesResponse.branches || [];
+                // STRICT: Filter by hotel_id client-side if not filtered server-side
+                if (hotelId && branches.length > 0) {
+                    branches = branches.filter(b => {
+                        const bHotelId = b.hotel_id || b.hotelId;
+                        return bHotelId && String(bHotelId) === String(hotelId);
+                    });
+                }
+            }
         } catch (e) {
             console.warn('Could not load branches:', e);
         }

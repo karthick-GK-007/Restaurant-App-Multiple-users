@@ -950,6 +950,8 @@ class SupabaseAPI {
             }));
             return {
                 id: trans.id,
+                hotel_id: trans.hotel_id,  // STRICT: Include hotel_id for client-side filtering
+                hotelId: trans.hotel_id,   // Also include camelCase for compatibility
                 branchId: trans.branch_id,
                 branchName: trans.branch_name,
                 date: trans.date,

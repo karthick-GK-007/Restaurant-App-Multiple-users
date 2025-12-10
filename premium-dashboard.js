@@ -918,7 +918,9 @@ function generateSalesTableRows(transactions) {
     }
     
     return transactions.map(transaction => {
-        const date = transaction.date || transaction.dateTime || 'N/A';
+        // Format date for display (DD-MM-YYYY format)
+        const rawDate = transaction.date || transaction.dateTime || '';
+        const date = formatDateForDisplay(rawDate);
         const branchName = transaction.branchName || 'Unknown';
         const orderType = transaction.orderType || 'Dining';
         const items = transaction.items || [];
@@ -1191,7 +1193,6 @@ function normalizeDateForComparison(dateStr) {
     if (ddmmyyyyMatch) {
         const [, day, month, year] = ddmmyyyyMatch;
         const normalized = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        console.log(`📅 Normalized date: "${dateStr}" → "${normalized}"`);
         return normalized;
     }
     
@@ -1202,15 +1203,47 @@ function normalizeDateForComparison(dateStr) {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
-            const normalized = `${year}-${month}-${day}`;
-            console.log(`📅 Parsed date: "${dateStr}" → "${normalized}"`);
-            return normalized;
+            return `${year}-${month}-${day}`;
         }
     } catch (e) {
-        console.warn('⚠️ Could not parse date:', dateStr, e);
+        // Silent fail - will return original string
     }
     
-    console.warn('⚠️ Could not normalize date format:', dateStr);
+    return dateStr;
+}
+
+// Helper function to format date for display (DD-MM-YYYY)
+function formatDateForDisplay(dateStr) {
+    if (!dateStr) return 'N/A';
+    
+    // If in YYYY-MM-DD format, convert to DD-MM-YYYY
+    const yyyymmddMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (yyyymmddMatch) {
+        const [, year, month, day] = yyyymmddMatch;
+        return `${day}-${month}-${year}`;
+    }
+    
+    // If already in DD/MM/YYYY or DD-MM-YYYY format, return as is (just replace / with -)
+    const ddmmyyyyMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (ddmmyyyyMatch) {
+        const [, day, month, year] = ddmmyyyyMatch;
+        return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+    }
+    
+    // Try to parse as Date object
+    try {
+        const dateObj = new Date(dateStr);
+        if (!isNaN(dateObj.getTime())) {
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+    } catch (e) {
+        // Silent fail
+    }
+    
+    // Return original if we can't parse
     return dateStr;
 }
 

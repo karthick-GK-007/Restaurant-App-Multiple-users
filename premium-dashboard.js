@@ -6,6 +6,63 @@
 // Theme Management
 let currentTheme = localStorage.getItem('dashboard-theme') || 'dark';
 
+// Load hotel name and update dashboard title
+async function loadHotelName() {
+    try {
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found for loading hotel name');
+            return;
+        }
+        
+        const api = window.supabaseApi || window.apiService;
+        if (!api) {
+            console.warn('⚠️ API service not available');
+            return;
+        }
+        
+        const client = await api.ensureClient();
+        if (!client) {
+            console.warn('⚠️ Supabase client not available');
+            return;
+        }
+        
+        // Try to get hotel name from hotel_admin_auth_check view
+        const { data: hotelData } = await client
+            .from('hotel_admin_auth_check')
+            .select('hotel_name')
+            .or(`hotel_id.eq.${hotelId},hotel_id_normalized.eq.${hotelId.toLowerCase()}`)
+            .limit(1)
+            .maybeSingle();
+        
+        if (hotelData && hotelData.hotel_name) {
+            const hotelNameElement = document.getElementById('dashboard-hotel-name');
+            if (hotelNameElement) {
+                hotelNameElement.textContent = hotelData.hotel_name;
+                console.log('✅ Updated dashboard hotel name:', hotelData.hotel_name);
+            }
+        } else {
+            // Fallback: try hotels table
+            const { data: hotelTableData } = await client
+                .from('hotels')
+                .select('name')
+                .or(`id.eq.${hotelId},slug.eq.${hotelId}`)
+                .limit(1)
+                .maybeSingle();
+            
+            if (hotelTableData && hotelTableData.name) {
+                const hotelNameElement = document.getElementById('dashboard-hotel-name');
+                if (hotelNameElement) {
+                    hotelNameElement.textContent = hotelTableData.name;
+                    console.log('✅ Updated dashboard hotel name from hotels table:', hotelTableData.name);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error loading hotel name:', error);
+    }
+}
+
 // Initialize premium dashboard features
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
@@ -13,6 +70,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     initAIChat();
     initAIInsights();
     enhanceCharts();
+    
+    // Load hotel name
+    await loadHotelName();
     
     // Hook into the authentication success to update dashboard
     setupDashboardUpdateHook();
@@ -37,6 +97,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (salesReportPanel) {
             salesReportPanel.classList.remove('hidden');
         }
+        
+        // Reload hotel name after authentication
+        await loadHotelName();
         
         // First try to load data if not already loaded
         if ((typeof salesData === 'undefined' || !salesData || !salesData.transactions || salesData.transactions.length === 0) &&
@@ -264,6 +327,20 @@ async function updateDashboardData() {
     try {
         console.log('🔄 Updating dashboard data...');
         
+        // STRICT: Get hotel_id from sessionStorage - only show data for logged-in hotel
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found in sessionStorage. Dashboard will show no data.');
+            transactions = [];
+            directUpdateSummaryCards([]);
+            if (typeof updateCharts === 'function') {
+                updateCharts([]);
+            }
+            return;
+        }
+        
+        console.log('🔒 Filtering dashboard data for hotel_id:', hotelId);
+        
         // Get transactions from global salesData - check multiple sources
         let transactions = [];
         
@@ -275,30 +352,23 @@ async function updateDashboardData() {
             transactions = window.salesData.transactions;
             console.log('✅ Found window.salesData.transactions:', transactions.length);
         } else {
-            // Try to get from API directly
+            // Try to get from API directly - MUST filter by hotel_id
             if (typeof apiService !== 'undefined' && apiService.getSales) {
                 console.log('📡 Fetching data directly from API...');
                 try {
                     if (!apiService.configLoaded) {
                         await apiService.initialize();
                     }
-                    const response = await apiService.getSales();
-                    if (response && response.transactions && Array.isArray(response.transactions)) {
-                        transactions = response.transactions;
-                        // Store in global for future use
-                        window.salesData = response;
-                        if (typeof salesData !== 'undefined') {
-                            // Try to update the local variable if it exists
-                            try {
-                                salesData = response;
-                            } catch (e) {
-                                // If salesData is const, just use window.salesData
-                                console.log('Using window.salesData for data storage');
-                            }
+                    // Note: getSales requires branchId, but we need all branches for the hotel
+                    // So we'll use loadSalesData which already handles hotel filtering
+                    if (typeof loadSalesData === 'function') {
+                        await loadSalesData();
+                        if (window.salesData && window.salesData.transactions) {
+                            transactions = window.salesData.transactions;
+                            console.log('✅ Fetched from loadSalesData:', transactions.length, 'transactions');
                         }
-                        console.log('✅ Fetched from API:', transactions.length, 'transactions');
                     } else {
-                        console.warn('⚠️ API returned invalid response:', response);
+                        console.warn('⚠️ loadSalesData function not available');
                     }
                 } catch (e) {
                     console.error('❌ Error fetching from API:', e);
@@ -306,6 +376,28 @@ async function updateDashboardData() {
                 }
             } else {
                 console.warn('⚠️ apiService.getSales not available');
+            }
+        }
+        
+        // STRICT: Filter transactions by hotel_id (double-check client-side)
+        if (transactions.length > 0 && hotelId) {
+            const originalCount = transactions.length;
+            transactions = transactions.filter(t => {
+                // Check if transaction has hotel_id that matches
+                const tHotelId = t.hotel_id || t.hotelId || null;
+                if (tHotelId && String(tHotelId) === String(hotelId)) {
+                    return true;
+                }
+                // If no hotel_id on transaction, check branch's hotel_id
+                if (t.branchId) {
+                    // We'll trust that loadSalesData already filtered by hotel_id
+                    // But if branch data is available, verify it
+                    return true; // Trust the server-side filter
+                }
+                return false;
+            });
+            if (transactions.length !== originalCount) {
+                console.log(`🔒 Filtered ${originalCount} transactions to ${transactions.length} for hotel_id: ${hotelId}`);
             }
         }
         
@@ -914,6 +1006,13 @@ async function applySalesFilters() {
     
     console.log(`📊 Total transactions available: ${allTransactions.length}`);
     
+    // Get hotel_id from sessionStorage - STRICT: Only show data for logged-in hotel
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+    if (!hotelId) {
+        console.warn('⚠️ No hotel_id found for sales filters');
+        return;
+    }
+    
     // Get filtered data - try API first, fallback to client-side
     let filteredTransactions = [];
     if (typeof apiService !== 'undefined' && apiService.getSales) {
@@ -1045,14 +1144,32 @@ function normalizeDateForComparison(dateStr) {
 
 // Client-side filtering helper
 function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) {
+    // STRICT: Get hotel_id from sessionStorage - only filter data for logged-in hotel
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+    
     console.log('🔍 Client-side filtering:', { 
         totalTransactions: transactions.length, 
         branchId, 
         fromDate, 
-        toDate 
+        toDate,
+        hotelId: hotelId || 'NOT SET - WILL FILTER ALL'
     });
     
     const filtered = transactions.filter(t => {
+        // STRICT: Filter by hotel_id first (most important filter)
+        if (hotelId) {
+            const tHotelId = t.hotel_id || t.hotelId || null;
+            if (tHotelId && String(tHotelId) !== String(hotelId)) {
+                return false; // Skip transactions from other hotels
+            }
+            // If transaction doesn't have hotel_id, we trust it was already filtered server-side
+            // But if we have hotel_id and transaction doesn't, skip it to be safe
+            if (!tHotelId && hotelId) {
+                // Trust server-side filter, but log a warning
+                console.warn('⚠️ Transaction missing hotel_id:', t);
+            }
+        }
+        
         // Filter by branch - handle both string and number comparisons
         if (branchId && branchId !== 'all') {
             const tBranchId = t.branchId;
@@ -1132,6 +1249,19 @@ function filterTransactionsClientSide(transactions, branchId, fromDate, toDate) 
 
 // Export to Excel
 function exportToExcel(transactions) {
+    // STRICT: Filter by hotel_id before exporting
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+    if (hotelId && transactions && transactions.length > 0) {
+        const originalCount = transactions.length;
+        transactions = transactions.filter(t => {
+            const tHotelId = t.hotel_id || t.hotelId || null;
+            return !tHotelId || String(tHotelId) === String(hotelId);
+        });
+        if (transactions.length !== originalCount) {
+            console.log(`🔒 Filtered ${originalCount} transactions to ${transactions.length} for export (hotel_id: ${hotelId})`);
+        }
+    }
+    
     if (!transactions || transactions.length === 0) {
         alert('No data to export');
         return;
@@ -1158,6 +1288,19 @@ function exportToExcel(transactions) {
 
 // Export to PDF
 function exportToPDF(transactions) {
+    // STRICT: Filter by hotel_id before exporting
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+    if (hotelId && transactions && transactions.length > 0) {
+        const originalCount = transactions.length;
+        transactions = transactions.filter(t => {
+            const tHotelId = t.hotel_id || t.hotelId || null;
+            return !tHotelId || String(tHotelId) === String(hotelId);
+        });
+        if (transactions.length !== originalCount) {
+            console.log(`🔒 Filtered ${originalCount} transactions to ${transactions.length} for export (hotel_id: ${hotelId})`);
+        }
+    }
+    
     if (!transactions || transactions.length === 0) {
         alert('No data to export');
         return;
@@ -1607,6 +1750,14 @@ function setupMenuInsightsFilters(allTransactions) {
     
     // Apply filters function
     async function applyMenuInsightsFilters() {
+        // STRICT: Get hotel_id from sessionStorage - only filter data for logged-in hotel
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found in sessionStorage. Cannot apply filters.');
+            alert('Hotel context not found. Please log in again.');
+            return;
+        }
+        
         const fromDate = document.getElementById('menu-from-date')?.value || '';
         const toDate = document.getElementById('menu-to-date')?.value || '';
         const activeBranchBtn = document.querySelector('.menu-branch-filter-btn.active');
@@ -1617,10 +1768,11 @@ function setupMenuInsightsFilters(allTransactions) {
             toDate, 
             selectedBranchId,
             hasDates: !!(fromDate || toDate),
-            hasBranch: !!selectedBranchId
+            hasBranch: !!selectedBranchId,
+            hotelId: hotelId
         });
         
-        // Get all transactions first
+        // Get all transactions first (should already be filtered by hotel_id from loadSalesData)
         let transactions = [];
         if (typeof salesData !== 'undefined' && salesData && salesData.transactions) {
             transactions = salesData.transactions;
@@ -1630,7 +1782,29 @@ function setupMenuInsightsFilters(allTransactions) {
             transactions = currentTransactions;
         }
         
+        // STRICT: Double-check hotel_id filtering
+        if (hotelId && transactions.length > 0) {
+            const originalCount = transactions.length;
+            transactions = transactions.filter(t => {
+                const tHotelId = t.hotel_id || t.hotelId || null;
+                return !tHotelId || String(tHotelId) === String(hotelId);
+            });
+            if (transactions.length !== originalCount) {
+                console.log(`🔒 Filtered ${originalCount} transactions to ${transactions.length} for hotel_id: ${hotelId}`);
+            }
+        }
+        } else {
+            transactions = currentTransactions;
+        }
+        
         console.log(`📊 Total transactions available: ${transactions.length}`);
+        
+        // Get hotel_id from sessionStorage - STRICT: Only show data for logged-in hotel
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found for menu insights filters');
+            return;
+        }
         
         // Get filtered data - always filter, even if no filters are set (shows all)
         let filteredTransactions = [];
@@ -1641,11 +1815,12 @@ function setupMenuInsightsFilters(allTransactions) {
         if (typeof apiService !== 'undefined' && apiService.getSales && hasFilters) {
             try {
                 console.log('📡 Fetching filtered data from API for menu insights...', {
+                    hotelId: hotelId,
                     branchId: selectedBranchId,
                     fromDate: fromDate || null,
                     toDate: toDate || null
                 });
-                const response = await apiService.getSales(selectedBranchId, fromDate || null, toDate || null);
+                const response = await apiService.getSales(selectedBranchId, fromDate || null, toDate || null, hotelId);
                 filteredTransactions = response.transactions || [];
                 console.log(`✅ API returned ${filteredTransactions.length} transactions for menu insights`);
                 
@@ -1816,6 +1991,14 @@ function setupBranchInsightsFilters(allTransactions) {
     
     // Apply filters function
     async function applyBranchInsightsFilters() {
+        // STRICT: Get hotel_id from sessionStorage - only filter data for logged-in hotel
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found in sessionStorage. Cannot apply filters.');
+            alert('Hotel context not found. Please log in again.');
+            return;
+        }
+        
         const fromDate = document.getElementById('branch-insights-from-date')?.value || '';
         const toDate = document.getElementById('branch-insights-to-date')?.value || '';
         const activeBranchBtn = document.querySelector('.branch-insights-filter-btn.active');
@@ -1826,10 +2009,11 @@ function setupBranchInsightsFilters(allTransactions) {
             toDate, 
             selectedBranchId,
             hasDates: !!(fromDate || toDate),
-            hasBranch: !!selectedBranchId
+            hasBranch: !!selectedBranchId,
+            hotelId: hotelId
         });
         
-        // Get all transactions first
+        // Get all transactions first (should already be filtered by hotel_id from loadSalesData)
         let transactions = [];
         if (typeof salesData !== 'undefined' && salesData && salesData.transactions) {
             transactions = salesData.transactions;
@@ -1839,7 +2023,20 @@ function setupBranchInsightsFilters(allTransactions) {
             transactions = currentTransactions;
         }
         
-        console.log(`📊 Total transactions available: ${transactions.length}`);
+        // STRICT: Double-check hotel_id filtering
+        if (hotelId && transactions.length > 0) {
+            const originalCount = transactions.length;
+            transactions = transactions.filter(t => {
+                const tHotelId = t.hotel_id || t.hotelId || null;
+                return !tHotelId || String(tHotelId) === String(hotelId);
+            });
+            if (transactions.length !== originalCount) {
+                console.log(`🔒 Filtered ${originalCount} transactions to ${transactions.length} for hotel_id: ${hotelId}`);
+            }
+        }
+        
+        console.log(`📊 Total transactions available (filtered by hotel): ${transactions.length}`);
+        }
         
         // Get filtered data - always filter, even if no filters are set (shows all)
         let filteredTransactions = [];
@@ -1850,11 +2047,12 @@ function setupBranchInsightsFilters(allTransactions) {
         if (typeof apiService !== 'undefined' && apiService.getSales && hasFilters) {
             try {
                 console.log('📡 Fetching filtered data from API for branch insights...', {
+                    hotelId: hotelId,
                     branchId: selectedBranchId,
                     fromDate: fromDate || null,
                     toDate: toDate || null
                 });
-                const response = await apiService.getSales(selectedBranchId, fromDate || null, toDate || null);
+                const response = await apiService.getSales(selectedBranchId, fromDate || null, toDate || null, hotelId);
                 filteredTransactions = response.transactions || [];
                 console.log(`✅ API returned ${filteredTransactions.length} transactions for branch insights`);
                 

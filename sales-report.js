@@ -337,7 +337,31 @@ function setupPasswordAuth() {
                     verifyParams.hotelIdentifier = hotelIdentifier;
                 }
                 
-                isPasswordValid = await api.verifyHotelAdminPassword(verifyParams);
+                const verifyResult = await api.verifyHotelAdminPassword(verifyParams);
+                isPasswordValid = verifyResult === true || (typeof verifyResult === 'object' && verifyResult.valid === true);
+                
+                // Store hotel_id from verification result if available
+                if (isPasswordValid && typeof verifyResult === 'object' && verifyResult.hotel_id) {
+                    sessionStorage.setItem('dashboardHotelId', verifyResult.hotel_id);
+                    console.log('✅ Stored hotel_id for dashboard:', verifyResult.hotel_id);
+                } else if (isPasswordValid && hotelIdentifier) {
+                    // Try to get hotel_id from identifier
+                    try {
+                        const client = await api.ensureClient();
+                        const { data: hotelData } = await client
+                            .from('hotel_admin_auth_check')
+                            .select('hotel_id')
+                            .or(`hotel_id.eq.${hotelIdentifier},hotel_id_normalized.eq.${hotelIdentifier.toLowerCase()},slug_normalized.eq.${hotelIdentifier.toLowerCase()}`)
+                            .limit(1)
+                            .maybeSingle();
+                        if (hotelData && hotelData.hotel_id) {
+                            sessionStorage.setItem('dashboardHotelId', hotelData.hotel_id);
+                            console.log('✅ Stored hotel_id from identifier:', hotelData.hotel_id);
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch hotel_id:', e);
+                    }
+                }
             } catch (error) {
                 console.error('Password verification error:', error);
                 // More helpful error message
@@ -367,6 +391,15 @@ function setupPasswordAuth() {
         
         if (isPasswordValid) {
             sessionStorage.setItem('adminAuthenticated', 'true');
+            
+            // Ensure hotel_id is stored (try to get from URL or sessionStorage if not already stored)
+            if (!sessionStorage.getItem('dashboardHotelId')) {
+                const storedHotelId = sessionStorage.getItem('selectedHotelId') || hotelIdentifier;
+                if (storedHotelId) {
+                    sessionStorage.setItem('dashboardHotelId', storedHotelId);
+                }
+            }
+            
             passwordModal.classList.add('hidden');
             salesReportPanel.classList.remove('hidden');
             errorMessage.textContent = '';
@@ -448,7 +481,64 @@ function setupPasswordAuth() {
     console.log('✅ Password authentication setup complete');
 }
 
-// Load sales data from Supabase
+// Load hotel name and update dashboard title
+async function loadHotelName() {
+    try {
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found for loading hotel name');
+            return;
+        }
+        
+        const api = window.supabaseApi || window.apiService;
+        if (!api) {
+            console.warn('⚠️ API service not available');
+            return;
+        }
+        
+        const client = await api.ensureClient();
+        if (!client) {
+            console.warn('⚠️ Supabase client not available');
+            return;
+        }
+        
+        // Try to get hotel name from hotel_admin_auth_check view
+        const { data: hotelData } = await client
+            .from('hotel_admin_auth_check')
+            .select('hotel_name')
+            .or(`hotel_id.eq.${hotelId},hotel_id_normalized.eq.${hotelId.toLowerCase()}`)
+            .limit(1)
+            .maybeSingle();
+        
+        if (hotelData && hotelData.hotel_name) {
+            const hotelNameElement = document.getElementById('dashboard-hotel-name');
+            if (hotelNameElement) {
+                hotelNameElement.textContent = hotelData.hotel_name;
+                console.log('✅ Updated dashboard hotel name:', hotelData.hotel_name);
+            }
+        } else {
+            // Fallback: try hotels table
+            const { data: hotelTableData } = await client
+                .from('hotels')
+                .select('name')
+                .or(`id.eq.${hotelId},slug.eq.${hotelId}`)
+                .limit(1)
+                .maybeSingle();
+            
+            if (hotelTableData && hotelTableData.name) {
+                const hotelNameElement = document.getElementById('dashboard-hotel-name');
+                if (hotelNameElement) {
+                    hotelNameElement.textContent = hotelTableData.name;
+                    console.log('✅ Updated dashboard hotel name from hotels table:', hotelTableData.name);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error loading hotel name:', error);
+    }
+}
+
+// Load sales data from Supabase - STRICT: Only for logged-in hotel
 async function loadSalesData() {
     try {
         console.log('📥 Loading sales data from Supabase...');
@@ -457,8 +547,52 @@ async function loadSalesData() {
             await apiService.initialize();
         }
         
-        const response = await apiService.getSales();
-        salesData = response || { transactions: [] };
+        // Get hotel_id from sessionStorage (set during login)
+        const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+        if (!hotelId) {
+            console.warn('⚠️ No hotel_id found in sessionStorage. Dashboard will show no data.');
+            salesData = { transactions: [] };
+            window.salesData = { transactions: [] };
+            return;
+        }
+        
+        console.log('🔒 Loading sales data for hotel_id:', hotelId);
+        
+        // Load sales data filtered by hotel_id
+        // Note: getSales requires branchId, but we want all branches for the hotel
+        // So we'll fetch all transactions and filter client-side, or use fetchSales directly
+        const api = window.supabaseApi || window.apiService;
+        let allTransactions = [];
+        
+        // Try to get all branches for this hotel first
+        try {
+            const client = await api.ensureClient();
+            const { data: branches } = await client
+                .from('branches')
+                .select('id')
+                .eq('hotel_id', hotelId);
+            
+            if (branches && branches.length > 0) {
+                // Fetch transactions for all branches of this hotel
+                for (const branch of branches) {
+                    try {
+                        const branchTransactions = await api.fetchSales({ 
+                            hotelId: hotelId, 
+                            branchId: branch.id 
+                        });
+                        allTransactions = allTransactions.concat(branchTransactions);
+                    } catch (e) {
+                        console.warn(`Could not fetch transactions for branch ${branch.id}:`, e);
+                    }
+                }
+            } else {
+                console.warn('⚠️ No branches found for hotel_id:', hotelId);
+            }
+        } catch (e) {
+            console.error('Error fetching hotel transactions:', e);
+        }
+        
+        salesData = { transactions: allTransactions };
         
         // Also set on window for global access
         window.salesData = salesData;
@@ -542,14 +676,21 @@ function setupEventListeners() {
     }
 }
 
-// Generate sales report
+// Generate sales report - STRICT: Only for logged-in hotel
 async function generateSalesReport() {
     const fromDate = document.getElementById('report-from-date').value;
     const toDate = document.getElementById('report-to-date').value;
     
+    // Get hotel_id from sessionStorage
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+    if (!hotelId) {
+        document.getElementById('sales-report').innerHTML = '<p>Hotel context not found. Please log in again.</p>';
+        return;
+    }
+    
     try {
-        // Load sales data with filters
-        const response = await apiService.getSales(null, fromDate, toDate);
+        // Load sales data with filters - filtered by hotel_id
+        const response = await apiService.getSales(null, fromDate, toDate, hotelId);
         const filteredTransactions = response.transactions || [];
         
         if (filteredTransactions.length === 0) {
@@ -691,13 +832,20 @@ async function generateSalesReport() {
     }
 }
 
-// Update dashboard
+// Update dashboard - STRICT: Only for logged-in hotel
 async function updateDashboard() {
     const fromDate = document.getElementById('dashboard-from-date').value;
     const toDate = document.getElementById('dashboard-to-date').value;
     
+    // Get hotel_id from sessionStorage
+    const hotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+    if (!hotelId) {
+        console.warn('⚠️ No hotel_id found for dashboard update');
+        return;
+    }
+    
     try {
-        const response = await apiService.getSales(null, fromDate, toDate);
+        const response = await apiService.getSales(null, fromDate, toDate, hotelId);
         const filteredTransactions = response.transactions || [];
         
         updateSummaryCards(filteredTransactions);

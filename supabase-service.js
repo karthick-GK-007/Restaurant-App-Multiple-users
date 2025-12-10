@@ -907,9 +907,25 @@ class SupabaseAPI {
         });
     }
 
-    async getSales(branchId = null, fromDate = null, toDate = null) {
+    async getSales(branchId = null, fromDate = null, toDate = null, hotelId = null) {
         try {
-            const transactions = await this.fetchSales({ branchId, fromDate, toDate });
+            // STRICT: If hotelId is provided, ensure it's used
+            // If not provided, try to get from sessionStorage
+            let finalHotelId = hotelId;
+            if (!finalHotelId) {
+                try {
+                    finalHotelId = sessionStorage.getItem('dashboardHotelId') || sessionStorage.getItem('selectedHotelId');
+                } catch (e) {
+                    // sessionStorage might not be available
+                }
+            }
+            
+            const transactions = await this.fetchSales({ 
+                branchId, 
+                fromDate, 
+                toDate, 
+                hotelId: finalHotelId 
+            });
             return { transactions };
         } catch (error) {
             console.error('Error fetching sales:', error);
@@ -1113,7 +1129,13 @@ class SupabaseAPI {
                         });
                         if (workaroundResult.data && workaroundResult.data.valid === true) {
                             console.log(`✅ Password verified via workaround function with identifier: "${identifier}"`);
-                            return true;
+                            // Workaround function returns hotel_id and hotel_name
+                            const result = workaroundResult.data;
+                            return { 
+                                valid: true, 
+                                hotel_id: result.hotel_id || identifier,
+                                hotel_name: result.hotel_name 
+                            };
                         }
                         error = workaroundResult.error || new Error('Workaround function returned invalid');
                     } catch (workaroundError) {
@@ -1130,7 +1152,21 @@ class SupabaseAPI {
                 
                 if (data === true) {
                     console.log(`✅ Password verified successfully with identifier: "${identifier}"`);
-                    return true;
+                    // Try to get hotel_id from the identifier
+                    try {
+                        const { data: hotelData } = await client
+                            .from('hotel_admin_auth_check')
+                            .select('hotel_id, hotel_name')
+                            .or(`hotel_id.eq.${identifier},hotel_id_normalized.eq.${identifier.toLowerCase()},slug_normalized.eq.${identifier.toLowerCase()}`)
+                            .limit(1)
+                            .maybeSingle();
+                        if (hotelData && hotelData.hotel_id) {
+                            return { valid: true, hotel_id: hotelData.hotel_id, hotel_name: hotelData.hotel_name };
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch hotel_id after verification:', e);
+                    }
+                    return { valid: true, hotel_id: identifier };
                 } else {
                     console.log(`❌ Password verification returned false for "${identifier}"`);
                 }

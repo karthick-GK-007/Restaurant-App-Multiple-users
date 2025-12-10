@@ -52,17 +52,17 @@
 
 .admin-hamburger-dropdown {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 4px);
     right: 0;
     left: auto;
     margin-top: 0;
     background: var(--surface);
     border: 1px solid rgba(var(--text-primary-rgb), 0.1);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    width: 200px;
-    max-width: 200px;
-    min-width: 200px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 170px;
+    max-width: 170px;
+    min-width: 170px;
     overflow: hidden;
     z-index: 1001;
     animation: dropdownFadeIn 0.2s ease;
@@ -86,8 +86,8 @@
 .admin-hamburger-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
+    gap: 0;
+    padding: 10px 14px;
     color: var(--text-primary);
     text-decoration: none;
     transition: all 0.2s ease;
@@ -104,17 +104,11 @@
     color: var(--primary);
 }
 
-.admin-hamburger-icon {
-    font-size: 1.2em;
-    width: 24px;
-    text-align: center;
-    flex-shrink: 0;
-}
-
 .admin-hamburger-text {
-    font-size: 0.95em;
+    font-size: 0.9em;
     font-weight: 500;
     font-family: var(--theme-font);
+    width: 100%;
 }
 
 /* Collapsible sections with chevron icons */
@@ -1579,12 +1573,16 @@ header {
 
 @media (max-width: 768px) {
     .admin-banner-inner {
-        padding: 10px 12px;
-        min-height: 44px;
+        padding: 6px 12px;
+        min-height: 36px;
     }
     
-    .admin-banner-block-new h1 {
-        font-size: 1.25rem;
+    .admin-banner-line1 {
+        font-size: 0.7rem;
+    }
+    
+    .admin-banner-line2 {
+        font-size: 0.9rem;
     }
     
     .admin-hamburger-btn {
@@ -1598,9 +1596,9 @@ header {
     }
     
     .admin-hamburger-dropdown {
-        width: 180px;
-        max-width: 180px;
-        min-width: 180px;
+        width: 160px;
+        max-width: 160px;
+        min-width: 160px;
         right: 0;
         left: auto;
     }
@@ -2824,8 +2822,8 @@ header .header-actions {
     background: var(--primary);
     color: var(--inverse);
     border: none;
-    font-size: 0.75rem;
-    padding: 4px 12px;
+    font-size: 0.7rem;
+    padding: 3px 10px;
     border-radius: 6px;
     font-weight: 500;
     white-space: nowrap;
@@ -2833,7 +2831,7 @@ header .header-actions {
     box-shadow: 0 1px 2px rgba(var(--secondary-rgb), 0.1);
     font-family: var(--theme-font);
     height: auto;
-    line-height: 1.4;
+    line-height: 1.3;
 }
 
 .btn-primary-compact-card:hover {
@@ -2851,8 +2849,8 @@ header .header-actions {
     background: var(--danger);
     color: var(--inverse);
     border: none;
-    font-size: 0.75rem;
-    padding: 4px 12px;
+    font-size: 0.7rem;
+    padding: 3px 10px;
     border-radius: 6px;
     font-weight: 500;
     white-space: nowrap;
@@ -2860,7 +2858,7 @@ header .header-actions {
     box-shadow: 0 1px 2px rgba(var(--secondary-rgb), 0.1);
     font-family: var(--theme-font);
     height: auto;
-    line-height: 1.4;
+    line-height: 1.3;
 }
 
 .btn-danger-compact-card:hover {

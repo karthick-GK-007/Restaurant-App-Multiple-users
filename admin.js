@@ -257,31 +257,20 @@ async function loadRestaurantTitle() {
             }
         }
         
-        // Format title: "Admin Panel - HotelName" (removed "Restaurant Menu")
-        let displayTitle = 'Admin Panel';
+        // Format title: Line 1 = "Admin Panel" (small), Line 2 = "HotelName Hotel" (medium)
+        let hotelDisplayName = 'Hotel';
         if (hotelName) {
-            // Capitalize first letter of each word
+            // Capitalize first letter of each word and add "Hotel" suffix
             const formattedHotelName = hotelName.split(' ').map(word => 
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             ).join(' ');
-            displayTitle = `Admin Panel - ${formattedHotelName}`;
+            hotelDisplayName = `${formattedHotelName} Hotel`;
         }
         
-        // Update the title text element
+        // Update the title text element (line 2)
         const titleTextElement = document.getElementById('restaurant-title-text');
         if (titleTextElement) {
-            titleTextElement.textContent = displayTitle;
-        } else {
-            // Fallback: update the h1 element directly
-            const titleElement = document.getElementById('restaurant-title-admin-header');
-            if (titleElement) {
-                const span = titleElement.querySelector('span');
-                if (span) {
-                    span.textContent = displayTitle;
-                } else {
-                    titleElement.textContent = displayTitle;
-                }
-            }
+            titleTextElement.textContent = hotelDisplayName;
         }
         
         // Update page title
@@ -2975,10 +2964,24 @@ async function handleItemSubmit(e) {
 
 // Save item helper function
 async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailability, imagePath, hasSizes) {
-    // Ensure itemId is always set - use provided ID or generate new one
-    const finalItemId = itemId ? parseInt(itemId) : Date.now();
+    // Ensure itemId is correctly set - for edit, use the provided ID; for new, generate one
+    let finalItemId;
+    if (itemId && itemId !== '' && itemId !== '0' && itemId !== 'null' && itemId !== 'undefined') {
+        // Edit mode - use the provided ID (ensure it's a number)
+        finalItemId = parseInt(itemId);
+        if (isNaN(finalItemId)) {
+            console.error('Invalid item ID for edit:', itemId);
+            showAdminPopup('error', 'Error', 'Invalid item ID. Cannot update item.', [
+                { text: 'OK', class: 'primary' }
+            ]);
+            return;
+        }
+    } else {
+        // New item - generate ID
+        finalItemId = Date.now();
+    }
     
-    // Null-safe image handling - only include if it exists
+    // Null-safe image handling - only include if it exists (optional field)
     const newItem = {
         id: finalItemId,
         branchId: branchId,
@@ -2988,9 +2991,9 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
         hasSizes: hasSizes
     };
     
-    // Only add image if it exists and is not empty
+    // Only add image if it exists and is not empty (optional field - must not block save)
     if (imagePath && imagePath.trim() !== '') {
-        newItem.image = imagePath;
+        newItem.image = imagePath.trim();
     }
     
     const pricingMode = 'inclusive';
@@ -3132,12 +3135,14 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
         console.error('Error saving item:', error);
         hideAdminLoader();
         
-        // Only fallback to localStorage if we're actually offline or it's a network error
-        const isOffline = isActuallyOffline() || isNetworkError(error);
+        // Check if we're truly offline (navigator.onLine is false AND network error)
+        const isTrulyOffline = !navigator.onLine && isNetworkError(error);
         
-        if (isOffline) {
+        // Only fallback to localStorage if we're TRULY offline
+        // Do NOT fallback for other errors (schema errors, validation errors, etc.)
+        if (isTrulyOffline) {
             // Network is down - save locally for sync later
-            console.log('📴 Network unavailable - saving locally for later sync');
+            console.log('📴 Network truly unavailable - saving locally for later sync');
             if (itemId) {
                 const index = menuItems.findIndex(item => 
                     String(item.id) === String(itemId) && 
@@ -3164,9 +3169,9 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
                 }
             ]);
         } else {
-            // Online but error occurred - show error message
+            // Online but error occurred - show error message and DO NOT fallback
             const errorMsg = error.message || String(error) || 'Unknown error occurred';
-            console.error('❌ Online save failed:', errorMsg);
+            console.error('❌ Online save failed (not falling back to local):', errorMsg);
             
             // For update operations, check if item exists in database
             if (itemId) {
@@ -3184,23 +3189,19 @@ async function saveItem(itemId, branchId, itemName, itemCategory, itemAvailabili
                 }
             }
             
-            // Show error with retry option
+            // Show error popup - do NOT fallback to local storage
             showAdminPopup('error', 'Error', `Failed to save item: ${errorMsg}. Please check your connection and try again.`, [
-                {
-                    text: 'Cancel',
-                    class: 'secondary',
-                    onClick: () => {}
-                },
-                {
-                    text: 'Retry',
+                { text: 'Cancel', class: 'secondary' },
+                { 
+                    text: 'Retry', 
                     class: 'primary',
-                    onClick: async () => {
-                        // Retry saving
-                        await saveItem(itemId, branchId, itemName, itemCategory, itemAvailability, imagePath, hasSizes);
+                    onClick: () => {
+                        // Retry the save operation
+                        saveItemForm();
                     }
                 }
             ]);
-            return; // Don't close modal on error
+            return;
         }
     }
     

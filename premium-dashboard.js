@@ -2026,7 +2026,6 @@ function setupBranchInsightsFilters(allTransactions) {
         }
         
         console.log(`📊 Total transactions available (filtered by hotel): ${transactions.length}`);
-        }
         
         // Get filtered data - always filter, even if no filters are set (shows all)
         let filteredTransactions = [];

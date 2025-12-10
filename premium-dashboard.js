@@ -1059,9 +1059,25 @@ async function applySalesFilters() {
         return;
     }
     
-    // Get filtered data - try API first, fallback to client-side
+    // Get filtered data - ALWAYS use client-side filtering when date filters are applied
+    // This ensures consistent date format handling (DD-MM-YYYY display, YYYY-MM-DD comparison)
     let filteredTransactions = [];
-    if (typeof apiService !== 'undefined' && apiService.getSales) {
+    
+    // If date filters are applied, always use client-side filtering for reliability
+    if ((fromDate || toDate) && allTransactions.length > 0) {
+        console.log('📅 Date filters detected - using client-side filtering for reliable date format handling...');
+        console.log('📅 Filter details:', {
+            fromDate: fromDate,
+            toDate: toDate,
+            fromDateDisplay: fromDate ? formatDateForDisplay(fromDate) : null,
+            toDateDisplay: toDate ? formatDateForDisplay(toDate) : null,
+            totalTransactions: allTransactions.length,
+            sampleTransactionDate: allTransactions[0].date,
+            sampleTransactionDateDisplay: formatDateForDisplay(allTransactions[0].date)
+        });
+        filteredTransactions = filterTransactionsClientSide(allTransactions, selectedBranchId, fromDate, toDate);
+        console.log(`✅ Client-side filtering returned ${filteredTransactions.length} transactions`);
+    } else if (typeof apiService !== 'undefined' && apiService.getSales) {
         try {
             console.log('📡 Fetching filtered data from API...', {
                 branchId: selectedBranchId,

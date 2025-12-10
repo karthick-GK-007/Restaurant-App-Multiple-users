@@ -1153,6 +1153,8 @@ class SupabaseAPI {
                 if (data === true) {
                     console.log(`✅ Password verified successfully with identifier: "${identifier}"`);
                     // Try to get hotel_id from the identifier
+                    let hotelId = identifier;
+                    let hotelName = null;
                     try {
                         const { data: hotelData } = await client
                             .from('hotel_admin_auth_check')
@@ -1161,12 +1163,26 @@ class SupabaseAPI {
                             .limit(1)
                             .maybeSingle();
                         if (hotelData && hotelData.hotel_id) {
-                            return { valid: true, hotel_id: hotelData.hotel_id, hotel_name: hotelData.hotel_name };
+                            hotelId = hotelData.hotel_id;
+                            hotelName = hotelData.hotel_name;
+                        } else {
+                            // Try hotels table as fallback
+                            const { data: hotelTableData } = await client
+                                .from('hotels')
+                                .select('id, name')
+                                .or(`id.eq.${identifier},slug.eq.${identifier},name.ilike.%${identifier}%`)
+                                .limit(1)
+                                .maybeSingle();
+                            if (hotelTableData) {
+                                hotelId = hotelTableData.id;
+                                hotelName = hotelTableData.name;
+                            }
                         }
                     } catch (e) {
                         console.warn('Could not fetch hotel_id after verification:', e);
                     }
-                    return { valid: true, hotel_id: identifier };
+                    // Always return object format for consistency
+                    return { valid: true, hotel_id: hotelId, hotel_name: hotelName };
                 } else {
                     console.log(`❌ Password verification returned false for "${identifier}"`);
                 }

@@ -824,12 +824,21 @@ function setupPasswordAuth() {
                 }
                 
                 console.log('🔍 Verifying password for hotel:', hotelIdentifier);
-                const isValid = await api.verifyHotelAdminPassword({
+                const verifyResult = await api.verifyHotelAdminPassword({
                     hotelIdentifier,
                     password: enteredPassword
                 });
-                console.log('🔍 Password verification result:', isValid);
-                isPasswordValid = isValid === true;
+                console.log('🔍 Password verification result:', verifyResult);
+                
+                // Handle both boolean true and object with valid: true
+                isPasswordValid = verifyResult === true || (typeof verifyResult === 'object' && verifyResult && verifyResult.valid === true);
+                
+                // Store hotel_id if available from verification result
+                if (isPasswordValid && typeof verifyResult === 'object' && verifyResult.hotel_id) {
+                    sessionStorage.setItem('selectedHotelId', verifyResult.hotel_id);
+                    sessionStorage.setItem('dashboardHotelId', verifyResult.hotel_id);
+                    console.log('✅ Stored hotel_id from verification:', verifyResult.hotel_id);
+                }
                 
                 if (!isPasswordValid) {
                     errorMessage.textContent = 'Incorrect password. Please try again.';

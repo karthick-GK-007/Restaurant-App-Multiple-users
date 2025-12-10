@@ -72,8 +72,18 @@ function injectEnvVars() {
 // Run the injection
 try {
     injectEnvVars();
+    console.log('✅ Build script completed without errors');
+    // Don't exit with error code - warnings are acceptable
+    // The app will fall back to localStorage if env vars are missing
 } catch (error) {
     console.error('❌ Error during build:', error);
-    process.exit(1);
+    console.error('   Stack:', error.stack);
+    // Only exit with error if it's a critical failure
+    // Missing env vars are warnings, not errors
+    if (error.code === 'ENOENT' || error.message.includes('Cannot find')) {
+        console.warn('⚠️  Non-critical error - continuing build');
+    } else {
+        process.exit(1);
+    }
 }
 

@@ -1483,7 +1483,21 @@ function renderMenuItems() {
         }
         
         const branchName = allBranches.find(b => String(b.id) == normalizedBranchId)?.name || `Branch ${normalizedBranchId}`;
-        const imageUrl = getImageUrl(item.image);
+        
+        // Debug: Check image sources (item.image, item.imageUrl, item.image_url)
+        const rawImage = item.image || item.imageUrl || item.image_url || '';
+        const imageUrl = getImageUrl(rawImage);
+        
+        // Debug logging for first few items
+        if (filteredItems.indexOf(item) < 3) {
+            console.log(`🖼️ Image debug for "${item.name}":`, {
+                'item.image': item.image,
+                'item.imageUrl': item.imageUrl,
+                'item.image_url': item.image_url,
+                'rawImage': rawImage,
+                'imageUrl (final)': imageUrl
+            });
+        }
         
         // Separate rendering for Grid View and List View
         if (adminViewMode === 'grid') {

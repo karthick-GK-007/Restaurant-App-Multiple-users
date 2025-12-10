@@ -562,6 +562,17 @@ class SupabaseAPI {
             throw error;
         }
         console.log(`📦 Supabase returned ${(data || []).length} items for hotel ${hotelId || 'any'}, branch ${branchId}`);
+        
+        // Debug: Log first item's raw image data
+        if (data && data.length > 0) {
+            const firstItem = data[0];
+            console.log(`🖼️ First item raw image data:`, {
+                'image_url': firstItem.image_url,
+                'image': firstItem.image,
+                'name': firstItem.name
+            });
+        }
+        
         const items = (data || []).map(item => this.normalizeMenuItem(item));
         if (useCache && items.length) {
             this.setCached(cacheKey, items, this.cacheDurations.menu);
@@ -1204,6 +1215,9 @@ class SupabaseAPI {
     }
 
     normalizeMenuItem(item) {
+        // Normalize image - check multiple possible fields
+        const normalizedImage = item.image_url || item.imageUrl || item.image || '';
+        
         return {
             id: item.id,
             branchId: item.branch_id,
@@ -1215,7 +1229,9 @@ class SupabaseAPI {
             price: this.parseDecimal(item.price),
             hasSizes: item.has_sizes || false,
             sizes: item.sizes || null,
-            image: item.image || '',
+            image: normalizedImage, // Prioritize image_url, fallback to image
+            imageUrl: normalizedImage, // Also set imageUrl for compatibility
+            image_url: normalizedImage, // Also set image_url for compatibility
             availability: item.availability || 'Available',
             pricingMode: item.pricing_mode || 'inclusive',
             pricingMetadata: item.pricing_metadata || {},
